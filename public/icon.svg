@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Buzzer">
+  <defs>
+    <linearGradient id="paper" x2=".8" y2="1"><stop stop-color="#fff"/><stop offset="1" stop-color="#c9cdd2"/></linearGradient>
+    <linearGradient id="red" x2="0" y2="1"><stop stop-color="#ff493b"/><stop offset=".52" stop-color="#ed251f"/><stop offset="1" stop-color="#af0e16"/></linearGradient>
+    <linearGradient id="silver" x2="0" y2="1"><stop stop-color="#fff"/><stop offset=".55" stop-color="#f4f5f6"/><stop offset="1" stop-color="#c7cbd2"/></linearGradient>
+  </defs>
+  <path fill="url(#paper)" d="M0 0h512v512H0z"/>
+  <path fill="#fff" opacity=".55" d="m0 65 512 369v40L0 107zm0 72 512 351v24h-24L0 171zM84 0l428 318v39L33 0z"/>
+  <path fill="#a1a8b1" opacity=".16" d="M0 374 512 58v29L0 405zm0 47L512 106v10L0 432z"/>
+  <g transform="translate(108 158) skewX(-11)">
+    <path fill="#050608" d="M-14-14H94q49 0 64 34V-14h168v63l-94 115h84v57H149v-24q-17 24-67 24h-96z"/>
+    <path fill="url(#silver)" fill-rule="evenodd" d="M0 0h89q53 0 53 45 0 29-26 42 31 9 31 45 0 61-66 61H0zm47 39v33h35q16 0 16-17 0-16-16-16zm0 70v43h37q20 0 20-22 0-21-20-21z"/>
+    <path fill="url(#red)" d="M159 0h153v41L209 151h94v42H149v-43L252 42h-93z"/>
+    <path fill="#fff" opacity=".36" d="M164 5h143v5H164z"/>
+  </g>
+  <path fill="#11151a" d="m132 395 237-14-5 11-235 14z"/>
+  <path fill="#ed251f" d="m133 395 83-5-2 11-85 5z"/>
+</svg>

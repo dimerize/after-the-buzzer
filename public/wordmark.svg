@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 490 132" role="img" aria-label="After the Buzzer">
+  <defs><linearGradient id="r" x2="0" y2="1"><stop stop-color="#ff5143"/><stop offset="1" stop-color="#c5111b"/></linearGradient><linearGradient id="w" x2="0" y2="1"><stop stop-color="#fff"/><stop offset="1" stop-color="#ccd4df"/></linearGradient></defs>
+  <g transform="translate(34 35) skewX(-12)" stroke="#07090e" stroke-width="9" stroke-linejoin="miter" paint-order="stroke fill">
+    <g fill="url(#w)" fill-rule="evenodd">
+      <path d="M0 0h35q25 0 25 21 0 12-11 19 13 4 13 20 0 28-31 28H0zm21 18v15h12q8 0 8-8 0-7-8-7zm0 33v19h13q10 0 10-10t-10-9z"/>
+      <path d="M73 0h23v60q0 11 10 11t10-11V0h23v61q0 28-33 28T73 61z"/>
+      <path d="M151 0h67v19l-41 50h41v19h-69V69l42-50h-40z"/>
+    </g>
+    <g fill="url(#r)" fill-rule="evenodd">
+      <path d="M230 0h67v19l-41 50h41v19h-69V69l42-50h-40z"/>
+      <path d="M309 0h62v20h-39v14h35v19h-35v15h39v20h-62z"/>
+      <path d="M383 0h36q30 0 30 27 0 20-15 26l19 35h-26l-16-31h-6v31h-22zm22 19v20h13q10 0 10-10t-10-10z"/>
+    </g>
+  </g>
+  <path fill="#080b13" d="m39 0 156 0-5 28H34z"/>
+  <text x="44" y="21" fill="#f4f6fa" font-family="Arial, sans-serif" font-size="20" font-weight="900" font-style="italic" letter-spacing="1.1">AFTER THE</text>
+</svg>

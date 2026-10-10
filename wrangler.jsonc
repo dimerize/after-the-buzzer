@@ -1,0 +1,12 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "after-the-buzzer",
+  "account_id": "0aac1d100e99c104a657af9f6cc37f4b",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-10-09",
+  "assets": { "directory": "./dist", "binding": "ASSETS", "not_found_handling": "single-page-application", "run_worker_first": ["/api/*"] },
+  "d1_databases": [{ "binding": "DB", "database_name": "nba-recap", "database_id": "9f5d32bc-c283-442e-81d9-7ff7793efc1b", "preview_database_id": "00000000-0000-0000-0000-000000000000", "migrations_dir": "migrations" }],
+  "triggers": { "crons": ["*/5 * * * *"] },
+  "vars": { "AI_MODEL": "gpt-6.1-sol", "AI_MONTHLY_LIMIT": "3" },
+  "observability": { "enabled": true }
+}
