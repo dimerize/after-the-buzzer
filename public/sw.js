@@ -1,5 +1,7 @@
-const CACHE = 'after-the-buzzer-shell-2k7-v5';
-const SHELL = ['/', '/icon.svg', '/icon-192.png', '/wordmark.svg', '/city-night.svg', '/manifest.webmanifest'];
+const CACHE = 'after-the-buzzer-shell-2k7-v6';
+const NOTIFICATION_ICON = '/icon-192.png?v=2';
+const SHELL = ['/', '/icon.svg?v=2', NOTIFICATION_ICON, '/icon-512.png?v=2', '/apple-touch-icon.png?v=2', '/wordmark.svg', '/city-night.svg', '/manifest.webmanifest'];
+const SHELL_PATHS = new Set(SHELL.map(path => path.split('?')[0]));
 function notificationUrl(value) {
   const fallback = '/?latest=1';
   if (typeof value !== 'string' || value.length > 512 || /[\s\\]/.test(value)) return fallback;
@@ -48,7 +50,7 @@ self.addEventListener('fetch', (event) => {
     }).catch(() => caches.match('/')));
     return;
   }
-  if (url.pathname.startsWith('/assets/') || SHELL.includes(url.pathname) || /^\/icon-\d+\.png$/.test(url.pathname)) {
+  if (url.pathname.startsWith('/assets/') || SHELL_PATHS.has(url.pathname) || /^\/icon-\d+\.png$/.test(url.pathname)) {
     event.respondWith(caches.match(event.request).then((cached) => cached || fetch(event.request).then((response) => {
       if (response.ok) { const copy = response.clone(); event.waitUntil(caches.open(CACHE).then((cache) => cache.put(event.request, copy))); }
       return response;
@@ -61,7 +63,7 @@ self.addEventListener('push', (event) => {
   const title = typeof data.title === 'string' ? data.title.slice(0, 100) : 'Buzzer';
   const body = typeof data.body === 'string' ? data.body.slice(0, 200) : 'NBA recap available.';
   const tag = typeof data.tag === 'string' ? data.tag.slice(0, 128) : 'buzzer-edition';
-  event.waitUntil(self.registration.showNotification(title, { body, icon: '/icon-192.png', badge: '/icon-192.png', tag, data: { url: notificationUrl(data.url) } }));
+  event.waitUntil(self.registration.showNotification(title, { body, icon: NOTIFICATION_ICON, badge: NOTIFICATION_ICON, tag, data: { url: notificationUrl(data.url) } }));
 });
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();

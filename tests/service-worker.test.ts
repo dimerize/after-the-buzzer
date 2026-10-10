@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import source from '../public/sw.js?raw';
+import manifest from '../public/manifest.webmanifest?raw';
 
 function serviceWorker() {
   const handlers: Record<string, (event: any) => void> = {};
@@ -13,8 +14,15 @@ function serviceWorker() {
     clients: { matchAll: vi.fn(async () => [client]), openWindow: vi.fn() }
   };
   const fetch = vi.fn(async () => new Response('<html><script src="/assets/app-abc.js"></script><link rel="stylesheet" href="/assets/app-def.css"><script src="https://other.example/third-party.js"></script></html>'));
-  new Function('self', 'URL', 'fetch', 'caches', source)(self, URL, fetch, { open: async () => cache });
-  return { handlers, cache, client, self };
+  const caches = {
+    open: vi.fn(async (_name: string) => cache),
+    match: vi.fn(async (_request: Request) => new Response('cached icon')),
+    keys: vi.fn(async () => ['after-the-buzzer-shell-2k7-v5', 'unrelated-cache']),
+    delete: vi.fn(async (_name: string) => true),
+  };
+  Object.assign(self.clients, { claim: vi.fn(async () => {}) });
+  new Function('self', 'URL', 'fetch', 'caches', source)(self, URL, fetch, caches);
+  return { handlers, cache, caches, client, self, fetch };
 }
 
 describe('offline shell and notification navigation', () => {
@@ -42,7 +50,8 @@ describe('offline shell and notification navigation', () => {
     expect(assets).toContain('/assets/app-def.css');
     expect(assets).toContain('/city-night.svg');
     expect(assets).toContain('/wordmark.svg');
-    expect(assets).toContain('/icon-192.png');
+    const iconUrls = JSON.parse(manifest).icons.map((icon: { src: string }) => icon.src);
+    expect(assets).toEqual(expect.arrayContaining(iconUrls));
     expect(assets).not.toContain('https://other.example/third-party.js');
   });
 
@@ -66,7 +75,7 @@ describe('offline shell and notification navigation', () => {
     await pending;
     const options = self.registration.showNotification.mock.calls[0][1] as any;
     expect(options.data.url).toBe('/?date=2026-10-10&player=5104157');
-    expect(options.icon).toBe('/icon-192.png');
+    expect(new URL(options.icon, 'https://recap.example').pathname).toBe('/icon-192.png');
     handlers.notificationclick({ notification: { data: options.data, close: vi.fn() }, waitUntil });
     await pending;
     expect(client.navigate).toHaveBeenCalledWith('/?date=2026-10-10&player=5104157');
@@ -117,5 +126,41 @@ describe('offline shell and notification navigation', () => {
       handlers.fetch({ request: { url, method: 'GET', mode: 'navigate' }, respondWith });
       expect(respondWith).not.toHaveBeenCalled();
     }
+  });
+
+  it('retires the previous logo cache without deleting unrelated caches', async () => {
+    const { handlers, caches } = serviceWorker();
+    let pending: Promise<unknown> = Promise.resolve();
+    handlers.activate({ waitUntil: (promise: Promise<unknown>) => { pending = promise; } });
+    await pending;
+    expect(caches.delete).toHaveBeenCalledWith('after-the-buzzer-shell-2k7-v5');
+    expect(caches.delete).not.toHaveBeenCalledWith('unrelated-cache');
+  });
+
+  it('uses a fresh, precached notification icon instead of the old unversioned URL', async () => {
+    const { handlers, self, cache } = serviceWorker();
+    let pending: Promise<unknown> = Promise.resolve();
+    const waitUntil = (promise: Promise<unknown>) => { pending = promise; };
+    handlers.install({ waitUntil });
+    await pending;
+    handlers.push({ data: { json: () => ({}) }, waitUntil });
+    await pending;
+    const { icon, badge } = self.registration.showNotification.mock.calls[0][1];
+    expect(icon).not.toBe('/icon-192.png');
+    expect(badge).toBe(icon);
+    const assets = cache.addAll.mock.calls.flatMap(call => (call as unknown as [string[]])[0]);
+    expect(assets).toContain(icon);
+  });
+
+  it('serves the versioned Apple icon offline without falling through to the network', async () => {
+    const { handlers, fetch } = serviceWorker();
+    let response: Promise<Response> | undefined;
+    handlers.fetch({
+      request: new Request('https://recap.example/apple-touch-icon.png?v=2'),
+      respondWith: (pending: Promise<Response>) => { response = pending; },
+    });
+    expect(response).toBeDefined();
+    expect(await (await response!).text()).toBe('cached icon');
+    expect(fetch).not.toHaveBeenCalled();
   });
 });
