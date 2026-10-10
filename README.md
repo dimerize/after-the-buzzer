@@ -61,6 +61,8 @@ Use the deployed **HTTPS `workers.dev` address**, not `127.0.0.1`. The computer'
 
 The app shell works offline; fresh recaps and historical stats need a connection. iPhone Web Push needs iOS 16.4 or later and the installed home-screen app. Once signed in from the home-screen icon, open Settings → Enable bedtime notifications → Allow, then Test notification. Focus modes, notification settings and connectivity can delay or suppress the banner. No App Store purchase or Apple developer membership is needed.
 
+Updates do not require reinstalling. To load a newly deployed interface immediately, swipe Buzzer away in the iPhone app switcher, then reopen its home-screen icon while online. Returning to an already-open app can resume its old interface. The in-app Refresh button refreshes game data only. Normal deployments preserve login and notification subscriptions; do not delete the app or clear site data to update it.
+
 ### Historical cache and backfill
 
 Apply both D1 migrations before using history. `/api/history/career?id=1966`, `/api/history/games?id=1966&season=2026`, and `/api/history/honors?season=2026` are authenticated on production. `season=2026` means 2025–26. Opening a player/year automatically imports and persists it. Career snapshots refresh after 24 hours; completed-season logs/leaderboards after 30 days. Partial snapshots retry after five minutes when requested. Failures retain the saved data and its original timestamp.
@@ -97,6 +99,8 @@ npm run check
 npm run build
 npm audit
 ```
+
+For the browser-based safe-area regression, open `/tests/fixtures/iphone-safe-area.html?suite` on the local Vite server. It renders the real stylesheet with controlled 59px, 20px and zero device insets in phone/desktop frames, checking header position and the black status-bar strip. This supplements, rather than replaces, an installed-iPhone check.
 
 - Feed errors: ESPN JSON endpoints are undocumented and have no service guarantee. Retry later; stored editions remain accessible. The adapter is isolated in `worker/espn.ts` for replacement.
 - Rookie context uses provider experience metadata only; unavailable metadata is not guessed.

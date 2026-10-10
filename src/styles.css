@@ -150,3 +150,26 @@
 @media(max-width:600px){.console-logo.console-wordmark{width:110px}}
 @media(max-width:360px){.console-logo.console-wordmark{width:96px}}
 @media(max-width:800px){.length-option>span:last-child{min-width:0;white-space:normal}.length-option small{white-space:normal;overflow-wrap:anywhere}.quiet-hours{align-items:end}}
+
+/* Keep the installed iPhone app below the status bar and Dynamic Island. */
+:root{
+  --app-safe-top:env(safe-area-inset-top,0px);
+  --app-top-gap:0px;
+  --app-top-space:calc(var(--app-safe-top) + var(--app-top-gap));
+  scroll-padding-top:var(--app-top-space);
+}
+#root{padding-top:var(--app-top-space)}
+body::before{transform:translateY(var(--app-top-space))}
+body::after{
+  content:'';
+  position:fixed;
+  top:0;
+  left:0;
+  right:0;
+  height:var(--app-top-space);
+  background:#000;
+  z-index:30;
+  pointer-events:none;
+}
+.auth-screen,.loading-screen{min-height:calc(100dvh - var(--app-top-space))}
+@media(max-width:800px){:root{--app-top-gap:16px}}
