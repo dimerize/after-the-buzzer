@@ -7,6 +7,7 @@ import { createPreferenceSaveQueue, type PreferenceSaveQueue, type PreferenceUpd
 import { createNotificationNavigation, sendCurrentDeviceTest } from './notification-navigation';
 import History from './History';
 import Schedule from './Schedule';
+import InjuryReport from './InjuryReport';
 import PlayerRoster from './PlayerRoster';
 import TeamLabel, { TeamText } from './TeamLabel';
 
@@ -67,9 +68,9 @@ export function PlayerRow({ player, line, expanded, onExpand }: { player: WatchP
     {available ? <span className="player-main-stats"><Stat value={line.points} label="PTS" /><Stat value={line.rebounds} label="REB" /><Stat value={line.assists} label="AST" /></span> : <span className="no-game">{player.id.startsWith('pending:') ? 'Unverified' : line?.didNotPlay ? 'DNP' : 'No game data'}</span>}
     <ChevronDown className="expand-icon" size={16} /></button>{expanded && (available ? <PlayerStats line={line} /> : <p className="player-status-detail">{status}.</p>)}</div>;
 }
-function GameRow({ game, hideScores }: { game: Game; hideScores: boolean }) {
+export function GameRow({ game, hideScores, onOpen }: { game: Game; hideScores: boolean; onOpen: () => void }) {
   const row = <><div className="game-teams"><span><Team team={game.away} /><strong>{hideScores ? '••' : game.awayScore ?? '—'}</strong></span><span><Team team={game.home} /><strong>{hideScores ? '••' : game.homeScore ?? '—'}</strong></span></div><span className={`game-status ${game.status === 'live' ? 'is-live' : ''}`}>{game.status === 'live' && <i />}{game.statusText}</span></>;
-  return game.sourceUrl ? <a className="game-row" href={game.sourceUrl} target="_blank" rel="noreferrer" aria-label={`${game.away} at ${game.home}, ${game.statusText}. Open source`}>{row}</a> : <div className="game-row">{row}</div>;
+  return <div className="game-row"><button className="game-row-open" onClick={onOpen} aria-label={`Open injury report for ${game.away} at ${game.home}, ${game.statusText}`}>{row}</button>{game.sourceUrl && <a className="game-row-source" href={game.sourceUrl} target="_blank" rel="noreferrer" aria-label={`${game.away} at ${game.home}: ESPN game details`}><ArrowUpRight size={16}/></a>}</div>;
 }
 
 export default function App() {
@@ -77,6 +78,7 @@ export default function App() {
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [page, setPage] = useState<Page>('tonight');
   const [scheduleRefresh, setScheduleRefresh] = useState(0);
+  const [selectedInjuryGame, setSelectedInjuryGame] = useState<{ game: Game; date: string } | null>(null);
   const [archiveView, setArchiveView] = useState<'recaps' | 'careers' | 'honors'>('careers');
   const [demo, setDemo] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -303,7 +305,7 @@ export default function App() {
       {page !== 'settings' && page !== 'games' && night.partial && <div className="warning-notice" role="status"><Radio size={16}/><span>Incomplete data. Some box scores are missing or delayed.</span><button onClick={() => void refresh()}>Retry</button></div>}
       {page !== 'settings' && page !== 'games' && night.warnings.length > 0 && <details className="data-warnings"><summary>{night.warnings.length} data {night.warnings.length === 1 ? 'notice' : 'notices'}</summary>{night.warnings.map((warning,i) => <p key={i}>{warning}</p>)}</details>}
 
-      {page === 'games' && <Schedule preferences={preferences} demo={demo} onConnectLive={() => void loadLive()} refreshKey={scheduleRefresh}/>}
+      {page === 'games' && <Schedule preferences={preferences} demo={demo} onConnectLive={() => void loadLive()} onOpenGame={(game, date) => setSelectedInjuryGame({ game, date })} refreshKey={scheduleRefresh}/>}
 
       {(page === 'tonight' || page === 'players') && <PlayerRoster players={preferences.players} lines={night.players} games={night.games} selectedId={expandedPlayer} onSelect={setExpandedPlayer} demo={demo}/>}
       {page === 'tonight' && <div className="recap-layout"><div className="primary-rail">
@@ -317,7 +319,7 @@ export default function App() {
         </Panel>
         {preferences.length === 'nerd' && <Panel title="Around the League" className="roster-panel"><div className="roster-head"><span>Player</span><span>PTS</span><span>REB</span><span>AST</span><span/></div><div className="favorites-list">{night.players.filter((line) => !favorites.some((player) => player.id === line.id)).slice(0,12).map((line) => <PlayerRow key={line.id} player={{...line,tier:'league',alerts:false}} line={line} expanded={expandedPlayer === line.id} onExpand={() => setExpandedPlayer(expandedPlayer === line.id ? null : line.id)}/>)}</div></Panel>}
       </div><aside className="secondary-rail">
-        <Panel title="Scoreboard" action={<span className="panel-meta">{night.games.length} games</span>} className="scoreboard"><div className="scoreboard-games">{night.games.length ? night.games.map((game) => <GameRow key={game.id} game={game} hideScores={preferences.hideScores}/>) : <p className="sidebar-empty">No games for this date.</p>}</div><button className="scores-toggle" onClick={() => void updatePreferences((current) => ({...current,hideScores:!current.hideScores}))}>{preferences.hideScores ? <Eye size={14}/> : <EyeOff size={14}/>} {preferences.hideScores ? 'Show scores' : 'Hide scores'}</button></Panel>
+        <Panel title="Scoreboard" action={<span className="panel-meta">{night.games.length} games</span>} className="scoreboard"><div className="scoreboard-games">{night.games.length ? night.games.map((game) => <GameRow key={game.id} game={game} hideScores={preferences.hideScores} onOpen={() => setSelectedInjuryGame({ game, date: night.date })}/>) : <p className="sidebar-empty">No games for this date.</p>}</div><button className="scores-toggle" onClick={() => void updatePreferences((current) => ({...current,hideScores:!current.hideScores}))}>{preferences.hideScores ? <Eye size={14}/> : <EyeOff size={14}/>} {preferences.hideScores ? 'Show scores' : 'Hide scores'}</button></Panel>
         <Panel title="Night Leaders" className="leaders">{night.leaders.length ? night.leaders.map((leader) => <div className="leader-row" key={leader.category}><div><small>{leader.category}</small><strong title={leader.names.join(', ')}>{leader.names.map(shortName).join(' / ')}</strong></div><span>{leader.value}</span></div>) : <p className="sidebar-empty">Awaiting game stats.</p>}<p className="panel-footnote">{demo ? 'Fictional sample performances.' : 'Among available box scores.'}{night.partial && ' Incomplete coverage.'}</p></Panel>
         {stillPlaying > 0 && <div className="night-status-bar"><span className="live-dot"/><strong>{stillPlaying} games in progress</strong></div>}
       </aside></div>}
@@ -341,5 +343,6 @@ export default function App() {
     <footer className="controller-footer"><div><button onClick={() => page === 'games' ? setScheduleRefresh(value => value + 1) : void refresh()} disabled={busy || loading}><span className="control-glyph green"><RefreshCw size={13} className={busy || loading ? 'spin' : ''}/></span><span>Refresh</span></button><button onClick={() => void updatePreferences((current) => ({...current,hideScores:!current.hideScores}))}><span className="control-glyph red">{preferences.hideScores ? <Eye size={14}/> : <EyeOff size={14}/>}</span><span>{preferences.hideScores ? 'Show scores' : 'Hide scores'}</span></button><button onClick={() => goTo('players')}><span className="control-glyph blue"><Users size={14}/></span><span>Watchlist</span></button><button onClick={() => void install()}><span className="control-glyph yellow"><ArrowDownToLine size={14}/></span><span>Install</span></button></div></footer>
     {message && <div className="toast panel" role="status"><span>{message}</span><button aria-label="Dismiss notification" onClick={() => setMessage('')}><X size={18}/></button></div>}
     {showInstall && <div className="modal-backdrop" onClick={() => setShowInstall(false)}><section className="install-dialog panel" role="dialog" aria-modal="true" aria-labelledby="install-title" onClick={(event) => event.stopPropagation()}><div className="panel-title"><h2 id="install-title">Install</h2><button className="icon-button" autoFocus aria-label="Close installation instructions" onClick={() => setShowInstall(false)}><X size={18}/></button></div><div className="dialog-content"><p><strong>iPhone / iPad</strong>Open the hosted address in Safari. Share → Add to Home Screen → turn on Open as Web App → Add.</p><p><strong>Android / Desktop Chrome</strong>Open the hosted address in Chrome. Menu → Install and create shortcut → Install (or Install app / Add to Home screen).</p><p className="settings-note">Phone installation requires the deployed HTTPS address. Localhost works only on this computer.</p><button className="primary-button" onClick={() => setShowInstall(false)}><span className="control-glyph green"><Check size={14}/></span>Close</button></div></section></div>}
+    {selectedInjuryGame && <InjuryReport key={`${selectedInjuryGame.date}:${selectedInjuryGame.game.id}`} game={selectedInjuryGame.game} date={selectedInjuryGame.date} timezone={preferences.timezone} demo={demo} onClose={() => setSelectedInjuryGame(null)} onConnectLive={() => void loadLive()}/>}
   </div>;
 }

@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Injury dialog phone preview</title>
+    <style>
+      body{margin:0;padding:12px;background:#101827;color:#e3edf8;font:14px system-ui,sans-serif}
+      #app-frame{display:block;max-width:100%;height:844px;margin:12px 0;border:1px solid #b9c5d2;background:#06101d}
+      #measurements{white-space:pre-wrap;line-height:1.5}
+    </style>
+    <script type="module">
+      const params = new URLSearchParams(location.search);
+      const width = [320, 390, 1280].includes(Number(params.get('width'))) ? Number(params.get('width')) : 390;
+      const safe = [0, 20, 59].includes(Number(params.get('safe'))) ? Number(params.get('safe')) : 59;
+      const frame = document.querySelector('#app-frame');
+      const measurements = document.querySelector('#measurements');
+      frame.style.width = `${width}px`;
+      frame.addEventListener('load', () => {
+        frame.contentDocument.documentElement.style.setProperty('--app-safe-top', `${safe}px`);
+        measurements.textContent = `Actual app: ${width}px wide, 844px high; simulated top safe area: ${safe}px. Open a game injury report inside the frame.`;
+      });
+      window.measureInjuryDialog = () => {
+        const doc = frame.contentDocument;
+        const dialog = doc.querySelector('.injury-dialog[open]');
+        const body = dialog?.querySelector('.injury-dialog-body');
+        if (!dialog || !body) return { open: false };
+        const rect = dialog.getBoundingClientRect();
+        const result = {
+          open: true, width, safe,
+          top: rect.top, bottom: rect.bottom,
+          expectedMinimumTop: safe + (width <= 500 ? 6 : 12),
+          topPass: rect.top >= safe + (width <= 500 ? 6 : 12),
+          bottomPass: rect.bottom <= frame.clientHeight - (width <= 500 ? 6 : 12),
+          bodyHeight: body.clientHeight, contentHeight: body.scrollHeight,
+          scrollable: body.scrollHeight > body.clientHeight,
+        };
+        measurements.textContent = JSON.stringify(result, null, 2);
+        return result;
+      };
+      window.setInterval(() => { if (frame.contentDocument?.querySelector('.injury-dialog[open]')) window.measureInjuryDialog(); }, 500);
+    </script>
+  </head>
+  <body>
+    <p>Actual app injury dialog preview. Use <code>?width=390&amp;safe=59</code>, <code>?width=320&amp;safe=59</code>, or <code>?width=1280&amp;safe=0</code>. Open a game, then inspect the measurements.</p>
+    <iframe id="app-frame" title="Actual After the Buzzer app" src="/"></iframe>
+    <pre id="measurements" role="status">Loading the app…</pre>
+  </body>
+</html>

@@ -32,13 +32,17 @@ The frontend also has a clearly labeled sample mode. Sample preferences are loca
 - Hall of Fame: six last-completed-season leader categories and top-ten rankings, based on ESPN's qualified per-game leaders—not invented awards.
 - All favorites are visible together in the Player Roster, with small headshots and aligned PTS/REB/AST/BLK columns. Desktop and phone use the same grid; there is no single-player hero. The retired jersey viewer is not imported or shipped in the application bundle.
 - Games: the next NBA slate with date controls, tipoffs in your chosen timezone, matchups, game status and source links. Uses real ESPN schedules only; unavailable data never becomes a fictional schedule.
+- Tap a game in Games or the Recap scoreboard for a blue/chrome injury report: both teams, headshots, status, reason, estimated return when supplied, and each entry's update time. This uses ESPN's full league injury feed, not the truncated game-summary list. ESPN and the NBA official-report link are clearly distinguished.
 - Five-minute scheduled updates independent of your laptop, a bedtime notification with up to two verified, favorite-first player stat lines and remaining-game status, silent later finalization, optional exceptional-performance alerts and quiet hours.
+- Notifications lead with a verified performance—such as “Wembanyama swats 7 shots” or “Şengün posts a triple-double”—instead of a generic prompt. Live games are labeled; no unsupported “historic” or “legendary” claims. Score hiding keeps the notification spoiler-free.
 - Notification taps open the matching game date and player, including after signing in. Settings includes a manual test for the current registered device; server acceptance is not a claim of confirmed device delivery.
 - Home-screen manifest, offline shell and encrypted Web Push service worker.
 - Private password authentication using a signed HttpOnly cookie, origin checks and login throttling. All data endpoints require authentication on production.
 - AI is optional and disabled without a server API key. In this first version it can select/order existing verified story text, not generate historical claims. Templates keep the recap useful without it.
 
 The NBA slate date follows Eastern time, rolling over at 06:00 so overnight games stay together. Bedtime and quiet hours follow your selected timezone independently. The schedule revisits unfinished recent nights in the Eastern daytime after an outage. Push delivery depends on browser/OS permission and network conditions, so five-minute polling is a target, not an exact delivery promise.
+
+Injury reports refresh when opened, every minute while visible, and when the app returns to the foreground or regains connectivity. The league feed is shared in D1 with a one-minute fetch cooldown; failures retain the saved list with its original timestamps and a stale warning. Feed update time and app check time are shown separately. A missing player or empty list does not establish health or game availability. Past-date, completed and postponed games do not show today's injury list as a historical report. No extra service subscription or AI call is used.
 
 ## Publish to your Cloudflare account
 
@@ -65,7 +69,7 @@ Updates do not require reinstalling. To load a newly deployed interface immediat
 
 ### Historical cache and backfill
 
-Apply both D1 migrations before using history. `/api/history/career?id=1966`, `/api/history/games?id=1966&season=2026`, and `/api/history/honors?season=2026` are authenticated on production. `season=2026` means 2025–26. Opening a player/year automatically imports and persists it. Career snapshots refresh after 24 hours; completed-season logs/leaderboards after 30 days. Partial snapshots retry after five minutes when requested. Failures retain the saved data and its original timestamp.
+Apply all D1 migrations before using the app (`0002_historical_stats.sql` adds history; `0003_injury_cache.sql` adds the shared injury cache). `/api/history/career?id=1966`, `/api/history/games?id=1966&season=2026`, and `/api/history/honors?season=2026` are authenticated on production. `season=2026` means 2025–26. Opening a player/year automatically imports and persists it. Career snapshots refresh after 24 hours; completed-season logs/leaderboards after 30 days. Partial snapshots retry after five minutes when requested. Failures retain the saved data and its original timestamp.
 
 Both the original local development database and the production database were backfilled at launch with 36 cache records and 2,345 player-game rows, including all available career seasons. All four established players' 2025–26 logs reconcile; Wagler has no prior NBA history. LeBron has older log gaps/provider discrepancies that remain marked partial, while his career aggregates reconcile across all 23 seasons. New databases do **not** receive this data automatically; production imports through the authenticated endpoints on demand. The configuration's all-zero `preview_database_id` deliberately preserves the original local cache identity; the production `database_id` is the real provisioned database.
 
@@ -101,6 +105,8 @@ npm audit
 ```
 
 For the browser-based safe-area regression, open `/tests/fixtures/iphone-safe-area.html?suite` on the local Vite server. It renders the real stylesheet with controlled 59px, 20px and zero device insets in phone/desktop frames, checking header position and the black status-bar strip. This supplements, rather than replaces, an installed-iPhone check.
+
+The injury dialog preview at `/tests/fixtures/injury-app-preview.html?width=390&safe=59` embeds the actual local app with a simulated top inset. Widths 320, 390 and 1280 and insets 0, 20 and 59 are supported; open a real game to inspect scrolling and dialog bounds.
 
 - Feed errors: ESPN JSON endpoints are undocumented and have no service guarantee. Retry later; stored editions remain accessible. The adapter is isolated in `worker/espn.ts` for replacement.
 - Rookie context uses provider experience metadata only; unavailable metadata is not guessed.

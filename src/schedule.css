@@ -13,6 +13,10 @@
 .schedule-table thead{background:linear-gradient(#7297bc,#2b476f 50%,#1a355f);color:#e0ebf8;text-shadow:1px 1px #000;font-size:15px}
 .schedule-table thead th{padding-top:6px;padding-bottom:6px;font-weight:600;border-bottom:2px solid #4868b2}
 .schedule-table tbody tr:nth-child(even){background:#10244766}
+.schedule-table tbody tr.schedule-open-row{cursor:pointer}
+.schedule-table tbody tr.schedule-open-row:hover{background:#3047bb88}
+.schedule-game-open{display:block;width:100%;min-height:44px;padding:0;text-align:left;color:inherit}
+.schedule-game-open:hover{text-decoration:underline;text-underline-offset:2px}
 .schedule-table tbody th,.schedule-table .schedule-team{font-weight:650;color:#e3edf8}
 .schedule-table .schedule-score{white-space:nowrap;overflow-wrap:normal;color:#d3e3f5}
 .schedule-table time{white-space:nowrap;display:block}.schedule-table small{display:block;font-size:13px;color:#9fb7d2;margin-top:2px}
@@ -23,6 +27,9 @@
 .schedule-feedback{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:12px;min-height:120px;padding:20px;text-align:center;font-size:17px;line-height:1.3;color:#b4cbe0}
 .schedule-notices{padding:8px 10px;font-size:13px;line-height:1.4;color:#e1c38c;background:#2b210e44;border-top:1px solid #78603d}.schedule-notices p+p{margin-top:4px}
 .schedule-sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.game-row-open{display:flex;align-items:center;justify-content:space-between;gap:8px;flex:1;min-width:0;min-height:52px;padding:0;text-align:left;color:inherit}
+.game-row-source{display:grid;place-items:center;flex:none;width:32px;min-height:44px;color:#b6d2f2}
+.game-row-source:hover{color:#fff}
 @media(max-width:800px){
   .game-tabs.schedule-tabs>button{min-width:0;font-size:13px;gap:3px;padding:2px;letter-spacing:0}
   .game-tabs.schedule-tabs svg{display:none}

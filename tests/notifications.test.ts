@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { runScheduled } from '../worker/index';
 import * as push from '../worker/push';
+import { bedtimeNotification, milestoneNotification } from '../worker/notifications';
 import type { Night, Preferences } from '../src/shared/types';
 import { game, line, night, notificationDb, notificationNow, preferences, pushEnv } from './notification-fixtures';
 
@@ -19,6 +20,56 @@ async function scheduled(value: Night, prefs = preferences()) {
 }
 
 describe('useful bedtime notifications', () => {
+  it('teases a verified triple-double without claiming historical significance', () => {
+    const payload = bedtimeNotification(night({ players: [line({ points: 24, rebounds: 12, assists: 11, blocks: 1 })] }), preferences());
+    expect(payload?.title).toMatch(/Wembanyama.*triple-double/i);
+    expect(payload?.title).not.toMatch(/legendary|historic|record|career/i);
+  });
+
+  it.each([
+    [4, 'quadruple-double'],
+    [5, 'quintuple-double'],
+  ])('names a verified %i-category double-digit line accurately', (categories, achievement) => {
+    const player = line({ points: 20, rebounds: 12, assists: 11, steals: categories === 5 ? 10 : 2, blocks: 10 });
+    const payload = bedtimeNotification(night({ players: [player] }), preferences());
+    expect(payload?.title).toContain(achievement);
+  });
+
+  it('teases high scoring and blocks from verified stats', () => {
+    const payload = bedtimeNotification(night({ players: [line({ points: 42, rebounds: 8, assists: 5, blocks: 7 })] }), preferences());
+    expect(payload?.title).toMatch(/Wembanyama.*42.*7/);
+    expect(payload?.title).toMatch(/block/i);
+  });
+
+  it('keeps an ordinary stat line factual and modest', () => {
+    const payload = bedtimeNotification(night({ players: [line({ points: 18, rebounds: 5, assists: 4, blocks: 1 })] }), preferences());
+    expect(payload?.title).toMatch(/Wembanyama.*18/);
+    expect(payload?.title).not.toMatch(/triple-double|legendary|historic|record|career/i);
+  });
+
+  it('signals live status in a live teaser', () => {
+    const payload = bedtimeNotification(night({ edition: 'live', players: [line({ status: 'live', points: 42 })], games: [game({ status: 'live' })] }), preferences());
+    expect(payload?.title).toMatch(/live/i);
+    expect(payload?.title).toContain('42');
+    expect(payload?.title).not.toMatch(/final/i);
+  });
+
+  it('uses a generic title when player facts cannot be verified', () => {
+    const payload = bedtimeNotification(night({ players: [line({ minutes: 0 })] }), preferences());
+    expect(payload?.title).toBe('NBA recap available');
+  });
+
+  it('keeps hidden-score payloads identical despite changes to player facts', () => {
+    const hidden = preferences({ hideScores: true });
+    expect(bedtimeNotification(night(), hidden)).toEqual(bedtimeNotification(night({ players: [line({ points: 60, assists: 15 })], partial: true }), hidden));
+  });
+
+  it('bounds the teaser title and body for long player names', () => {
+    const payload = bedtimeNotification(night({ players: [line({ name: 'Extremely Long Player Name '.repeat(8), points: 42 })] }), preferences());
+    expect(payload?.title.length).toBeLessThanOrEqual(80);
+    expect(payload?.body.length).toBeLessThanOrEqual(200);
+  });
+
   it('sends two favorite lines before a higher-scoring league player and links the source night', async () => {
     const james = line({ id: '1966', name: 'LeBron James', points: 28, rebounds: 8, assists: 11, blocks: 0 });
     const { delivered } = await scheduled(night({ players: [line({ id: '999', name: 'League Star', points: 60 }), james, line()] }));
@@ -95,6 +146,25 @@ describe('useful bedtime notifications', () => {
 describe('opted-in milestone notification', () => {
   const liveNight = () => night({ edition: 'live', players: [line({ points: 40, status: 'live' })], games: [game({ status: 'live', statusText: '4th · 3:21' })] });
   const livePreferences = (values: Partial<Preferences> = {}) => preferences({ bedtime: '22:00', liveAlerts: true, ...values });
+
+  it('uses an expressive live title grounded in the milestone and blocks', () => {
+    const payload = milestoneNotification(liveNight(), livePreferences(), line({ points: 40, status: 'live' }), 'points');
+    expect(payload?.title).toMatch(/Wembanyama.*40.*7/);
+    expect(payload?.title).toMatch(/block/i);
+    expect(payload?.title).toMatch(/live/i);
+  });
+
+  it('names the reached milestone even when another stat would lead the bedtime teaser', () => {
+    const player = line({ points: 18, rebounds: 20, assists: 4, blocks: 1, status: 'live' });
+    const payload = milestoneNotification(liveNight(), livePreferences(), player, 'rebounds');
+    expect(payload?.title).toMatch(/Wembanyama.*20.*boards.*live/i);
+  });
+
+  it('includes a reached points milestone in a live triple-double title', () => {
+    const player = line({ points: 40, rebounds: 12, assists: 11, blocks: 1, status: 'live' });
+    const payload = milestoneNotification(liveNight(), livePreferences(), player, 'points');
+    expect(payload?.title).toMatch(/Wembanyama.*40.*live/i);
+  });
 
   it('contains the full basic stat line, opponent, live clock and deep link', async () => {
     const { delivered } = await scheduled(liveNight(), livePreferences());

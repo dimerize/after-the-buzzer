@@ -10,6 +10,7 @@ import { searchPlayers } from './players';
 import { validatePreferences, validDate, validSubscriptionKeys } from './validation';
 import { loadCareerHistory, loadSeasonLog, loadSeasonHonors, validHistoryId, validHistorySeason } from './history-store';
 import { bedtimeNotification, milestoneNotification } from './notifications';
+import { loadGameInjuries } from './injuries';
 
 const COOKIE='buzzer_session';
 function local(request:Request,env:Env):boolean {
@@ -102,6 +103,15 @@ async function route(request:Request,env:Env):Promise<Response> {
     if(!date||url.searchParams.getAll('date').length!==1||!validDate(date)) return json({error:'Choose a valid schedule date.'},400);
     try { return json(await fetchSchedule(date)); }
     catch { return json({error:'The NBA schedule could not be loaded. Try again shortly.'},502); }
+  }
+  if(url.pathname==='/api/injuries'&&request.method==='GET') {
+    const date=url.searchParams.get('date');
+    const gameId=url.searchParams.get('gameId');
+    if(!date||!validDate(date)||url.searchParams.getAll('date').length!==1||!gameId||!/^[1-9]\d{0,11}$/.test(gameId)||url.searchParams.getAll('gameId').length!==1) return json({error:'Choose a valid game and date.'},400);
+    const schedule=await fetchSchedule(date);
+    const game=schedule.games.find(candidate=>candidate.id===gameId);
+    if(!game) return json({error:'That game is not on the selected schedule.'},404);
+    return json(await loadGameInjuries(env.DB,game,date));
   }
   if(url.pathname==='/api/refresh'&&request.method==='POST') {
     const input=await body(request) as {date?:string};

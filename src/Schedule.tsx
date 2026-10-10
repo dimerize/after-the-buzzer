@@ -5,25 +5,25 @@ import TeamLabel from './TeamLabel';
 import { fetchSchedule, formatScheduleDate, formatScheduleTipoff, nextScheduleDate, shiftScheduleDate, visibleScheduleRequest, type ScheduleRequestState } from './schedule-view';
 import './schedule.css';
 
-export function ScheduleTable({ games, date, timezone, hideScores }: { games: Game[]; date: string; timezone: string; hideScores: boolean }) {
+export function ScheduleTable({ games, date, timezone, hideScores, onOpenGame }: { games: Game[]; date: string; timezone: string; hideScores: boolean; onOpenGame?: (game: Game, date: string) => void }) {
   return <div className="schedule-table-wrap"><table className="schedule-table" aria-label={`NBA games for ${date}`}>
     <colgroup><col className="schedule-time-col"/><col/><col/><col className="schedule-score-col"/><col className="schedule-status-col"/><col className="schedule-link-col"/></colgroup>
     <thead><tr><th scope="col">Tipoff</th><th scope="col">Away</th><th scope="col">Home</th><th scope="col">Score</th><th scope="col">Status</th><th scope="col"><span className="schedule-sr-only">Source</span></th></tr></thead>
     <tbody>{games.map(game => {
       const tipoff = formatScheduleTipoff(game.startsAt, timezone, date);
       const score = game.status === 'scheduled' || game.status === 'postponed' ? '—' : hideScores ? '••' : `${game.awayScore ?? '—'} – ${game.homeScore ?? '—'}`;
-      return <tr key={game.id} className={game.status === 'live' ? 'schedule-live' : ''}>
-        <td><time dateTime={game.startsAt}>{tipoff.time}</time>{tipoff.date && <small>{tipoff.date}</small>}</td>
+      return <tr key={game.id} className={`${game.status === 'live' ? 'schedule-live' : ''} ${onOpenGame ? 'schedule-open-row' : ''}`} onClick={onOpenGame ? () => onOpenGame(game, date) : undefined}>
+        <td>{onOpenGame ? <button className="schedule-game-open" aria-label={`Open injury report for ${game.away} at ${game.home}`} onClick={event => { event.stopPropagation(); onOpenGame(game, date); }}><time dateTime={game.startsAt}>{tipoff.time}</time>{tipoff.date && <small>{tipoff.date}</small>}</button> : <><time dateTime={game.startsAt}>{tipoff.time}</time>{tipoff.date && <small>{tipoff.date}</small>}</>}</td>
         <th scope="row"><TeamLabel team={game.away} /></th><td className="schedule-team"><TeamLabel team={game.home} /></td>
         <td className="schedule-score" aria-label={hideScores && ['live', 'final'].includes(game.status) ? 'Score hidden' : undefined}>{score}</td>
         <td className="schedule-game-status">{game.status === 'scheduled' ? 'Scheduled' : game.statusText || game.status}</td>
-        <td>{game.sourceUrl && <a href={game.sourceUrl} target="_blank" rel="noreferrer" aria-label={`${game.away} at ${game.home}: ESPN game details`}><ArrowUpRight size={15}/></a>}</td>
+        <td>{game.sourceUrl && <a href={game.sourceUrl} target="_blank" rel="noreferrer" aria-label={`${game.away} at ${game.home}: ESPN game details`} onClick={event => event.stopPropagation()}><ArrowUpRight size={15}/></a>}</td>
       </tr>;
     })}</tbody>
   </table></div>;
 }
 
-export default function Schedule({ preferences, demo, onConnectLive, refreshKey = 0 }: { preferences: Pick<Preferences, 'timezone' | 'hideScores'>; demo: boolean; onConnectLive: () => void; refreshKey?: number }) {
+export default function Schedule({ preferences, demo, onConnectLive, onOpenGame, refreshKey = 0 }: { preferences: Pick<Preferences, 'timezone' | 'hideScores'>; demo: boolean; onConnectLive: () => void; onOpenGame: (game: Game, date: string) => void; refreshKey?: number }) {
   const [date, setDate] = useState(() => nextScheduleDate());
   const [attempt, setAttempt] = useState(0);
   const key = `${date}:${attempt}:${refreshKey}:${demo}`;
@@ -57,7 +57,7 @@ export default function Schedule({ preferences, demo, onConnectLive, refreshKey 
         : visible.loading ? <div className="schedule-feedback" role="status"><LoaderCircle className="spin" size={19}/><span>Loading schedule…</span></div>
           : visible.error ? <div className="schedule-feedback" role="alert"><span>{visible.error}</span><button className="small-button" onClick={() => setAttempt(value => value + 1)}>Retry</button>{visible.error.startsWith('Sign in') && <button className="small-button" onClick={onConnectLive}>Sign in</button>}</div>
             : visible.data && <>
-              {visible.data.games.length ? <ScheduleTable games={visible.data.games} date={date} timezone={preferences.timezone} hideScores={preferences.hideScores}/> : <div className="schedule-feedback" role="status">No games reported for {formatScheduleDate(date)}.</div>}
+              {visible.data.games.length ? <ScheduleTable games={visible.data.games} date={date} timezone={preferences.timezone} hideScores={preferences.hideScores} onOpenGame={onOpenGame}/> : <div className="schedule-feedback" role="status">No games reported for {formatScheduleDate(date)}.</div>}
               {!!visible.data.warnings?.length && <div className="schedule-notices" role="status">{visible.data.warnings.map((warning, index) => <p key={index}>{warning}</p>)}</div>}
               <div className="schedule-source"><span>ESPN schedule</span>{updated && Number.isFinite(updated.getTime()) && <time dateTime={visible.data.updatedAt}>Updated {new Intl.DateTimeFormat('en-US', { timeZone: preferences.timezone, month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(updated)}</time>}</div>
             </>}

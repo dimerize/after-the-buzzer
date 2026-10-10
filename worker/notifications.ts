@@ -19,6 +19,29 @@ function opponent(game: Game, player: PlayerLine): string {
 function state(game: Game): string {
   return game.status === 'final' ? 'final' : `live ${clean(game.statusText, 24)}`;
 }
+function playerTitle(player: PlayerLine, game: Game, milestone?: typeof BASIC_STATS[number]): string {
+  const name = clean(player.name, 30);
+  const doubleDigits = BASIC_STATS.filter(key => player[key] >= 10).length;
+  let feat: string;
+  if (milestone === 'points' && player.points >= 40 && player.blocks >= 5) feat = `drops ${player.points} with ${player.blocks} blocks`;
+  else if (milestone === 'points') feat = `scores ${player.points} points`;
+  else if (milestone === 'rebounds') feat = `grabs ${player.rebounds} boards`;
+  else if (milestone === 'assists') feat = `dishes ${player.assists} assists`;
+  else if (milestone === 'steals') feat = `snags ${player.steals} steals`;
+  else if (milestone === 'blocks') feat = `blocks ${player.blocks} shots`;
+  else if (doubleDigits === 5) feat = 'posts a quintuple-double';
+  else if (doubleDigits === 4) feat = 'posts a quadruple-double';
+  else if (doubleDigits === 3) feat = 'posts a triple-double';
+  else if (player.points >= 40 && player.blocks >= 5) feat = `drops ${player.points} with ${player.blocks} blocks`;
+  else if (player.points >= 40) feat = `drops ${player.points} points`;
+  else if (player.points >= 30 && player.rebounds >= 10) feat = `goes for ${player.points} and ${player.rebounds} boards`;
+  else if (player.blocks >= 5) feat = `swats ${player.blocks} shots`;
+  else if (player.points > 0) feat = `scores ${player.points} points`;
+  else if (player.rebounds > 0) feat = `grabs ${player.rebounds} boards`;
+  else if (player.assists > 0) feat = `dishes ${player.assists} assists`;
+  else feat = 'takes the court';
+  return clean(`${name} ${feat}${game.status === 'live' ? ' · live' : ''}`, 80);
+}
 function context(night: Night): string {
   const live = night.games.filter(game => game.status === 'live').length;
   const later = night.games.filter(game => game.status === 'scheduled').length;
@@ -49,14 +72,15 @@ export function bedtimeNotification(night: Night, preferences: Preferences): Not
     const text = `${clean(player.name, 26)}: ${player.points} PTS ${player.rebounds} REB ${player.assists} AST · vs ${opponent(game, player)} · ${state(game)}`;
     if ([...lines, text, remaining].join('; ').length <= 200) lines.push(text);
   }
-  return { ...base, url: lines.length ? link(night, performers[0]) : base.url,
+  return { ...base, title: lines.length ? playerTitle(performers[0], verifiedGame(night, performers[0])!) : base.title,
+    url: lines.length ? link(night, performers[0]) : base.url,
     body: [...(lines.length ? lines : ['Player stats unavailable']), remaining].join('; ').slice(0, 200) };
 }
 
 export function milestoneNotification(night: Night, preferences: Preferences, player: PlayerLine, milestone: typeof BASIC_STATS[number]): NotificationPayload | null {
   const game = verifiedGame(night, player);
   if (preferences.hideScores || !game || game.status !== 'live') return null;
-  return { title: `${clean(player.name, 50)} · ${player[milestone]} ${milestone}`,
+  return { title: playerTitle(player, game, milestone),
     body: `${player.points} PTS · ${player.rebounds} REB · ${player.assists} AST · ${player.steals} STL · ${player.blocks} BLK · vs ${opponent(game, player)} · ${state(game)}${night.partial ? ' · partial data' : ''}`.slice(0, 200),
     url: link(night, player), tag: `live-${player.gameId}-${player.id}` };
 }
