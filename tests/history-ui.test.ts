@@ -1,8 +1,23 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { HistorySource } from '../src/History';
+import { HistorySource, SeasonsTable } from '../src/History';
+import type { CareerHistorySection, HistoricalStats } from '../src/shared/history-types';
 import { formatHistoryUpdatedAt, historyForPlayer, historyRequestKey, visibleHistoryRequest } from '../src/history-request';
+
+describe('historical structured team cells', () => {
+  it('renders Minnesota and a traded team as logos while keeping the minutes heading plain', () => {
+    const stats: HistoricalStats = { points: null, rebounds: null, assists: null, steals: null, blocks: null, threes: null, turnovers: null, minutes: 34, fgMade: null, fgAttempted: null, ftMade: null, ftAttempted: null, fgPct: null, threePct: null, ftPct: null };
+    const section: CareerHistorySection = { seasonType: 'regular', coverage: 'complete', career: null, warnings: [], sourceUrl: '', seasons: [{ season: 2008, label: '2007–08', teams: ['MIN', 'SEA'], games: 70, starts: 68, averages: stats, totals: stats, doubleDoubles: null, tripleDoubles: null }] };
+    const html = renderToStaticMarkup(createElement(SeasonsTable, { section, selected: 2008, onSelect: () => {}, totals: false }));
+    expect(html).toContain('src="/team-logos/min.png"');
+    expect(html).toContain('src="/team-logos/sea.png"');
+    expect(html.match(/<img /g)).toHaveLength(2);
+    expect(html).toContain('</span>/<span');
+    expect(html).toContain('<th>MIN</th>');
+    expect(html).toContain('<td>34</td>');
+  });
+});
 
 describe('historical request identity', () => {
   const oldCareer = { playerId: '1966', availableSeasons: [2026, 2025, 2024, 2013] };

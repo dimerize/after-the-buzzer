@@ -25,8 +25,10 @@ describe('box-score row portraits', () => {
 
   it.each(['pending:unknown', 'sample-player', 'demo-1', ''])('renders a neutral fallback instead of inventing a headshot for %j', (id) => {
     const html = renderPlayer(id);
-    expect(html).not.toContain('<img');
+    const avatar = html.match(/<span class="player-avatar[^\"]*"[^>]*>(.*?)<\/span>/)?.[1];
+    expect(avatar).toBeDefined();
+    expect(avatar).not.toContain('<img');
     expect(html).not.toContain('espncdn.com');
-    expect(html).toContain('<svg viewBox="0 0 100 100" aria-hidden="true">');
+    expect(avatar).toContain('<svg viewBox="0 0 100 100" aria-hidden="true">');
   });
 });

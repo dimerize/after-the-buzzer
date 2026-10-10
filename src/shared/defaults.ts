@@ -7,6 +7,6 @@ export const DEFAULT_PREFERENCES: Preferences = {
     { id: '5037871', name: 'Dylan Harper', team: 'SAS', tier: 'favorite', alerts: true },
     { id: '4845367', name: 'Stephon Castle', team: 'SAS', tier: 'favorite', alerts: true }
   ],
-  bedtime: '23:30', timezone: 'America/New_York', length: 'normal', hideScores: false,
+  bedtime: '23:30', timezone: 'America/New_York', length: 'nerd', hideScores: false,
   liveAlerts: false, quietStart: '00:00', quietEnd: '09:00'
 };

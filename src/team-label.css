@@ -1,0 +1,14 @@
+.team-label{display:inline-flex;align-items:center;gap:4px;white-space:nowrap;vertical-align:middle;min-width:0}
+.team-label>img{display:block;flex:none;width:var(--team-logo-size,24px);height:var(--team-logo-size,24px);object-fit:contain}
+.team-label>span{white-space:nowrap}
+.team-label.team-inline{--team-logo-size:12px;gap:2px;vertical-align:-2px}
+.player-roster-name .team-label,.player-name .team-label,.team-label.roster-team{--team-logo-size:10px;gap:3px}
+.history-table .team-label{--team-logo-size:16px;gap:3px}
+.history-team-list{display:inline-flex;align-items:center;gap:3px;white-space:nowrap}
+@media(max-width:800px){
+  .team-label{--team-logo-size:14px;gap:3px}
+  .game-teams .team-label{--team-logo-size:12px;gap:2px}
+  .schedule-table .team-label{--team-logo-size:12px;font-size:13px;gap:2px}
+  .schedule-table tbody th,.schedule-table .schedule-team{padding-left:2px;padding-right:2px}
+  .history-table .team-label{--team-logo-size:12px;gap:2px}
+}

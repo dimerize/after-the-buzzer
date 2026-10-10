@@ -25,6 +25,8 @@ The frontend also has a clearly labeled sample mode. Sample preferences are loca
 
 - Tonight: source-linked story cards, game states, stat leaders including ties, every favorite who played, and clear partial-data warnings.
 - Three watchlist tiers, player search from ESPN rosters, phone-editable bedtime/timezone, recap length and score hiding.
+- Full Detail is the default: up to eight stories plus additional player statistics. Quick and Standard remain available as explicit choices.
+- Small verified 2007–08 team logos accompany team abbreviations throughout the app. Current franchise abbreviations keep their historical marks (for example, OKC uses Seattle). See [logo sources and rights](docs/team-logo-sources.md).
 - Persistent night archive. Recap trackers cover **collected completed games** only; the separate Careers screen imports full available season/career aggregates and individual season game logs.
 - Careers: regular season/playoffs, totals/averages, every available year, game logs, top scoring games and box-score milestones. Historical logs reconcile against season totals; incomplete years stay explicitly partial. All-Star, play-in and non-counting NBA Cup finals are excluded.
 - Hall of Fame: six last-completed-season leader categories and top-ten rankings, based on ESPN's qualified per-game leaders—not invented awards.

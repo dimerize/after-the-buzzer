@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { Game, PlayerLine, WatchPlayer } from './shared/types';
+import TeamLabel from './TeamLabel';
 import './player-roster.css';
 
 export interface PlayerRosterProps {
@@ -40,7 +41,7 @@ export default function PlayerRoster({ players, lines, games, selectedId, onSele
       const team = line?.team || player.team;
       return <button type="button" className={'player-roster-row' + (selectedId === player.id ? ' selected' : '')} data-player-id={player.id} key={player.id} aria-pressed={selectedId === player.id}
         aria-label={`${player.name}, ${team}, ${status}, ${values.map((value, index) => `${columns[index][1]} ${value === '—' ? 'unavailable' : value}`).join(', ')}`} onClick={() => onSelect(player.id)}>
-        <span className="player-roster-identity"><RosterPortrait key={player.id} id={player.id} /><span className="player-roster-name"><strong>{player.name}</strong><small>{team} · {status}</small></span></span>
+        <span className="player-roster-identity"><RosterPortrait key={player.id} id={player.id} /><span className="player-roster-name"><strong>{player.name}</strong><small><TeamLabel team={team} /> · {status}</small></span></span>
         {values.map((value, index) => <span className="player-roster-stat" key={columns[index][0]}>{value}</span>)}
       </button>;
     })}{!displayed.length && <p className="player-roster-empty">No favorites selected.</p>}</div>

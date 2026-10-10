@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ArrowUpRight, ChevronLeft, ChevronRight, LoaderCircle, RefreshCw } from 'lucide-react';
 import type { Game, Preferences } from './shared/types';
+import TeamLabel from './TeamLabel';
 import { fetchSchedule, formatScheduleDate, formatScheduleTipoff, nextScheduleDate, shiftScheduleDate, visibleScheduleRequest, type ScheduleRequestState } from './schedule-view';
 import './schedule.css';
 
@@ -13,7 +14,7 @@ export function ScheduleTable({ games, date, timezone, hideScores }: { games: Ga
       const score = game.status === 'scheduled' || game.status === 'postponed' ? '—' : hideScores ? '••' : `${game.awayScore ?? '—'} – ${game.homeScore ?? '—'}`;
       return <tr key={game.id} className={game.status === 'live' ? 'schedule-live' : ''}>
         <td><time dateTime={game.startsAt}>{tipoff.time}</time>{tipoff.date && <small>{tipoff.date}</small>}</td>
-        <th scope="row">{game.away}</th><td className="schedule-team">{game.home}</td>
+        <th scope="row"><TeamLabel team={game.away} /></th><td className="schedule-team"><TeamLabel team={game.home} /></td>
         <td className="schedule-score" aria-label={hideScores && ['live', 'final'].includes(game.status) ? 'Score hidden' : undefined}>{score}</td>
         <td className="schedule-game-status">{game.status === 'scheduled' ? 'Scheduled' : game.statusText || game.status}</td>
         <td>{game.sourceUrl && <a href={game.sourceUrl} target="_blank" rel="noreferrer" aria-label={`${game.away} at ${game.home}: ESPN game details`}><ArrowUpRight size={15}/></a>}</td>

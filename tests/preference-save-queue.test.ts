@@ -14,10 +14,11 @@ describe('preference save queue', () => {
   it('saves full snapshots one at a time while displaying the newest optimistic edit', async () => {
     const first = deferred(), second = deferred();
     const started: Preferences[] = [];
-    let displayed = structuredClone(DEFAULT_PREFERENCES);
-    let stored = structuredClone(DEFAULT_PREFERENCES);
+    const initial: Preferences = { ...structuredClone(DEFAULT_PREFERENCES), length: 'normal' };
+    let displayed = structuredClone(initial);
+    let stored = structuredClone(initial);
     const queue = createPreferenceSaveQueue({
-      initial: DEFAULT_PREFERENCES,
+      initial,
       save: async (next) => { started.push(next); await (started.length === 1 ? first.promise : second.promise); stored = next; },
       onChange: (next) => { displayed = next; }, onError: () => { throw new Error('Unexpected save failure'); }
     });
