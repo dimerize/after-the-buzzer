@@ -15,6 +15,7 @@ export function validatePreferences(value: unknown): Preferences {
   try { new Intl.DateTimeFormat('en-US', { timeZone: v.timezone }).format(); } catch { throw new Error('Invalid timezone.'); }
   if (typeof v.length !== 'string' || !['quick', 'normal', 'nerd'].includes(v.length)) throw new Error('Invalid recap length.');
   if (typeof v.hideScores !== 'boolean' || typeof v.liveAlerts !== 'boolean') throw new Error('Invalid notification settings.');
+  if (v.injuryAlerts !== undefined && typeof v.injuryAlerts !== 'boolean') throw new Error('Invalid injury alert settings.');
   if (!Array.isArray(v.players) || v.players.length > 60) throw new Error('Choose up to 60 players.');
   const ids = new Set<string>();
   const players = v.players.map((p: unknown) => {
@@ -24,9 +25,10 @@ export function validatePreferences(value: unknown): Preferences {
     ids.add(x.id);
     if (typeof x.name !== 'string' || !x.name.trim() || x.name.length > 100 || typeof x.team !== 'string' || x.team.length > 10) throw new Error('Invalid player name or team.');
     if (typeof x.tier !== 'string' || !['favorite', 'interest', 'league'].includes(x.tier) || typeof x.alerts !== 'boolean') throw new Error('Invalid player tier.');
-    return { id: x.id, name: x.name.trim(), team: x.team, tier: x.tier as Tier, alerts: x.alerts };
+    if (x.injuryAlerts !== undefined && typeof x.injuryAlerts !== 'boolean') throw new Error('Invalid injury alert setting.');
+    return { id: x.id, name: x.name.trim(), team: x.team, tier: x.tier as Tier, alerts: x.alerts, injuryAlerts: x.injuryAlerts === true };
   });
-  return { players, bedtime: time('bedtime'), timezone: v.timezone, length: v.length as Preferences['length'], hideScores: v.hideScores, liveAlerts: v.liveAlerts, quietStart: time('quietStart'), quietEnd: time('quietEnd') };
+  return { players, bedtime: time('bedtime'), timezone: v.timezone, length: v.length as Preferences['length'], hideScores: v.hideScores, liveAlerts: v.liveAlerts, injuryAlerts: v.injuryAlerts === true, quietStart: time('quietStart'), quietEnd: time('quietEnd') };
 }
 
 export function validSubscriptionKeys(p256dh:string, auth:string):boolean {

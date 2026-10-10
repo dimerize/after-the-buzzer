@@ -114,6 +114,14 @@ describe('injury report content', () => {
 });
 
 describe('game entry points', () => {
+  it('labels live and final game entry points as box scores', () => {
+    for (const status of ['live', 'final'] as const) {
+      const started = { ...game, status };
+      expect(renderToStaticMarkup(<GameRow game={started} hideScores={false} onOpen={() => {}} />)).toContain('Open box score for SAS at LAL');
+      expect(renderToStaticMarkup(<ScheduleTable games={[started]} date="2026-10-10" timezone="America/New_York" hideScores={false} onOpenGame={() => {}} />)).toContain('Open box score for SAS at LAL');
+    }
+  });
+
   it('makes the schedule matchup an accessible button while preserving its ESPN source link', () => {
     const html = renderToStaticMarkup(<ScheduleTable games={[game]} date="2026-10-10" timezone="America/New_York" hideScores={false} onOpenGame={() => {}} />);
     expect(html).toContain('<button');

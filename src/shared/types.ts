@@ -1,10 +1,10 @@
 export type Tier = 'favorite' | 'interest' | 'league';
 export type GameStatus = 'scheduled' | 'live' | 'final' | 'postponed';
-export interface WatchPlayer { id: string; name: string; team: string; tier: Tier; alerts: boolean; }
+export interface WatchPlayer { id: string; name: string; team: string; tier: Tier; alerts: boolean; injuryAlerts?: boolean; }
 export interface Preferences {
   players: WatchPlayer[]; bedtime: string; timezone: string;
   length: 'quick' | 'normal' | 'nerd'; hideScores: boolean;
-  liveAlerts: boolean; quietStart: string; quietEnd: string;
+  liveAlerts: boolean; injuryAlerts?: boolean; quietStart: string; quietEnd: string;
 }
 export interface StatLine {
   points: number; rebounds: number; assists: number; steals: number; blocks: number;

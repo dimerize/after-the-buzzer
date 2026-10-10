@@ -2,6 +2,17 @@ import { describe, expect, it } from 'vitest';
 import { createNotificationNavigation, sendCurrentDeviceTest } from '../src/notification-navigation';
 
 describe('notification navigation', () => {
+  it('retains an injury game target through sign-in and consumes it only on navigation', () => {
+    const target = createNotificationNavigation('?date=2026-10-10&game=401898399&view=injuries');
+    expect(target.forceLive).toBe(true);
+    expect(target.gameTarget).toEqual({ date: '2026-10-10', gameId: '401898399', view: 'injuries' });
+    expect(target.dashboardPath()).toBe('/api/dashboard?date=2026-10-10');
+    target.openLatest();
+    expect(target.gameTarget).toBeUndefined();
+  });
+  it.each(['?date=2026-10-10&game=0&view=injuries', '?date=2026-02-30&game=1&view=injuries', '?date=2026-10-10&game=1&game=2&view=injuries', '?date=2026-10-10&game=1&view=admin', '?game=1&view=injuries'])('rejects invalid game target %s', search => {
+    expect(createNotificationNavigation(search).gameTarget).toBeUndefined();
+  });
   it('opens the notified date and player rather than the current slate or saved sample mode', () => {
     const target = createNotificationNavigation('?date=2026-10-09&player=5104157');
     expect(target.forceLive).toBe(true);

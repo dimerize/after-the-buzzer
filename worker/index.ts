@@ -11,6 +11,8 @@ import { validatePreferences, validDate, validSubscriptionKeys } from './validat
 import { loadCareerHistory, loadSeasonLog, loadSeasonHonors, validHistoryId, validHistorySeason } from './history-store';
 import { bedtimeNotification, milestoneNotification } from './notifications';
 import { loadGameInjuries } from './injuries';
+import { loadGameBoxScore } from './boxscores';
+import { resetInjuryAlertBaselines, runInjuryAlerts } from './injury-alerts';
 
 const COOKIE='buzzer_session';
 function local(request:Request,env:Env):boolean {
@@ -104,14 +106,14 @@ async function route(request:Request,env:Env):Promise<Response> {
     try { return json(await fetchSchedule(date)); }
     catch { return json({error:'The NBA schedule could not be loaded. Try again shortly.'},502); }
   }
-  if(url.pathname==='/api/injuries'&&request.method==='GET') {
+  if(['/api/injuries','/api/boxscore'].includes(url.pathname)&&request.method==='GET') {
     const date=url.searchParams.get('date');
     const gameId=url.searchParams.get('gameId');
     if(!date||!validDate(date)||url.searchParams.getAll('date').length!==1||!gameId||!/^[1-9]\d{0,11}$/.test(gameId)||url.searchParams.getAll('gameId').length!==1) return json({error:'Choose a valid game and date.'},400);
     const schedule=await fetchSchedule(date);
     const game=schedule.games.find(candidate=>candidate.id===gameId);
     if(!game) return json({error:'That game is not on the selected schedule.'},404);
-    return json(await loadGameInjuries(env.DB,game,date));
+    return json(url.pathname==='/api/boxscore' ? await loadGameBoxScore(env.DB,game,date) : await loadGameInjuries(env.DB,game,date));
   }
   if(url.pathname==='/api/refresh'&&request.method==='POST') {
     const input=await body(request) as {date?:string};
@@ -120,7 +122,9 @@ async function route(request:Request,env:Env):Promise<Response> {
   }
   if(url.pathname==='/api/preferences'&&request.method==='PUT') {
     const preferences=validatePreferences(await body(request));
+    const previous=await getPreferences(env.DB);
     await savePreferences(env.DB,preferences);
+    await resetInjuryAlertBaselines(env.DB,previous,preferences);
     return json({preferences});
   }
   if(url.pathname==='/api/players'&&request.method==='GET') {
@@ -137,6 +141,16 @@ async function route(request:Request,env:Env):Promise<Response> {
     return json(url.pathname==='/api/history/games' ? await loadSeasonLog(env.DB,id!,season) : await loadSeasonHonors(env.DB,season));
   }
   if(url.pathname==='/api/push/key'&&request.method==='GET') return env.VAPID_PUBLIC_KEY?json({publicKey:env.VAPID_PUBLIC_KEY}):json({error:'Push notifications are not configured yet.'},503);
+  // Owner-requested release notice. Fixed copy and durable release ID prevent
+  // this private operation becoming an arbitrary broadcast endpoint.
+  if(url.pathname==='/api/push/release'&&request.method==='POST') {
+    if(!env.VAPID_PUBLIC_KEY||!env.VAPID_PRIVATE_KEY||!env.VAPID_SUBJECT) return json({error:'Push notifications are not configured yet.'},503);
+    const id='release:2026-10-10-injury-alerts-boxscores';
+    if(await env.DB.prepare('SELECT id FROM notifications WHERE id=?').bind(id).first()) return json({accepted:true,alreadySent:true});
+    if(!(await acquireLock(env.DB,'push-release:owner',60))) return json({error:'Release notification already being submitted. Try again in a minute.'},429);
+    const accepted=await notify(env,id,{title:'Buzzer update is live',body:'Full box scores + injury-change alerts are ready. Close and reopen Buzzer. Enable injury alerts in Settings and pick players in Watchlist.',url:'/?latest=1',tag:id});
+    return accepted?json({accepted:true,alreadySent:false}):json({error:'No notification was accepted. Check registered devices and notification permission.'},502);
+  }
   if(url.pathname==='/api/push/test'&&request.method==='POST') {
     if(!env.VAPID_PUBLIC_KEY||!env.VAPID_PRIVATE_KEY||!env.VAPID_SUBJECT) return json({error:'Push notifications are not configured yet.'},503);
     const input=await body(request) as {endpoint?:unknown};
@@ -198,6 +212,10 @@ async function notify(env:Env,id:string,payload:{title:string;body:string;url:st
 export async function runScheduled(env:Env,now=new Date()):Promise<void> {
   if(!env.APP_PASSWORD) return; // Fail closed if a production deployment is unconfigured.
   const preferences=await getPreferences(env.DB);
+  if(preferences.injuryAlerts===true&&preferences.players.some(player=>player.injuryAlerts===true&&player.tier!=='league')) {
+    try { await runInjuryAlerts(env,preferences,now,(id,payload)=>notify(env,id,payload)); }
+    catch(error) { console.error('Injury alert poll failed:',error instanceof Error?error.message:'unavailable'); }
+  }
   const date=basketballDate(now,'America/New_York');
   const existing=await getNight(env.DB,date);
   const bedtime=isBedtimeDue(now,preferences);

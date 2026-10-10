@@ -18,6 +18,20 @@ function serviceWorker() {
 }
 
 describe('offline shell and notification navigation', () => {
+  it('preserves a validated game report route through notification clicks', async () => {
+    const { handlers, client } = serviceWorker();
+    let pending: Promise<unknown> = Promise.resolve();
+    handlers.notificationclick({ notification: { data: { url: '/?date=2026-10-10&game=401898399&view=injuries' }, close: vi.fn() }, waitUntil: (promise: Promise<unknown>) => { pending = promise; } });
+    await pending;
+    expect(client.navigate).toHaveBeenCalledWith('/?date=2026-10-10&game=401898399&view=injuries');
+  });
+  it.each(['/?date=2026-10-10&game=0&view=injuries', '/?date=2026-10-10&game=1&view=admin', '/?date=2026-10-10&game=1&view=injuries&view=boxscore', '/?date=2026-10-10&view=injuries'])('rejects unsafe game report routes: %s', async url => {
+    const { handlers, client } = serviceWorker();
+    let pending: Promise<unknown> = Promise.resolve();
+    handlers.notificationclick({ notification: { data: { url }, close: vi.fn() }, waitUntil: (promise: Promise<unknown>) => { pending = promise; } });
+    await pending;
+    expect(client.navigate).toHaveBeenCalledWith('/?latest=1');
+  });
   it('caches first-load hashed JS and CSS during installation, not just HTML', async () => {
     const { handlers, cache } = serviceWorker();
     let pending: Promise<unknown> = Promise.resolve();

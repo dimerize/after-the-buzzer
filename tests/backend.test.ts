@@ -5,6 +5,13 @@ import { buildTrackers } from '../worker/store';
 import type { Night } from '../src/shared/types';
 
 describe('settings validation', () => {
+  it('keeps injury opt-ins separate from scoring alerts and defaults old settings off', () => {
+    const old = { ...DEFAULT_PREFERENCES, injuryAlerts: undefined, players: [{ ...DEFAULT_PREFERENCES.players[0], injuryAlerts: undefined }] };
+    expect(validatePreferences(old)).toMatchObject({ injuryAlerts: false, players: [{ injuryAlerts: false, alerts: true }] });
+    expect(validatePreferences({ ...old, injuryAlerts: true, players: [{ ...old.players[0], injuryAlerts: true }] })).toMatchObject({ injuryAlerts: true, players: [{ injuryAlerts: true }] });
+    expect(() => validatePreferences({ ...old, injuryAlerts: 'true' })).toThrow();
+    expect(() => validatePreferences({ ...old, players: [{ ...old.players[0], injuryAlerts: 'true' }] })).toThrow();
+  });
   it('accepts the default watchlist without changing its tiers', () => expect(validatePreferences(DEFAULT_PREFERENCES)).toEqual(DEFAULT_PREFERENCES));
   it('rejects duplicate IDs and unknown timezones', () => {
     expect(()=>validatePreferences({...DEFAULT_PREFERENCES, players: [DEFAULT_PREFERENCES.players[0],DEFAULT_PREFERENCES.players[0]]})).toThrow();

@@ -33,7 +33,8 @@ function athleteId(athlete: Obj): string {
   }
   return '';
 }
-interface Feed { feedUpdatedAt: string | null; teams: InjuryTeam[]; warnings: string[]; }
+interface Feed { feedUpdatedAt: string | null; teams: InjuryTeam[]; warnings: string[]; verifiedPlayerKeys?: string[]; }
+type FreshFeed = Feed & { feedUpdatedAt: string };
 interface CacheRow { payload: string | null; checked_at: number | null; attempted_at: number; }
 interface LoadedFeed { feed: Feed | null; fetchedAt: string | null; failed: boolean; }
 
@@ -42,6 +43,7 @@ export function parseInjuryFeed(value: unknown): Feed {
   if (!Array.isArray(root.injuries)) throw new Error('Injury feed is unavailable.');
   const warnings: string[] = [];
   const teams: InjuryTeam[] = [];
+  const verifiedPlayerKeys: string[] = [];
   for (const raw of root.injuries) {
     const block = obj(raw);
     const teamId = id(block.id);
@@ -70,6 +72,7 @@ export function parseInjuryFeed(value: unknown): Feed {
       const reason = [location, detail && detail.toLowerCase() !== location.toLowerCase() ? detail : ''].filter(Boolean).join(' · ') || 'Reason not provided';
       const returnDate = text(details.returnDate, 10);
       const player: InjuryPlayer = { id: playerId, name, status, reason, updatedAt: timestamp(injury.date), estimatedReturn: validDate(returnDate) ? returnDate : null };
+      if (playerTeamId === teamId) verifiedPlayerKeys.push(`${team}:${playerId}`);
       const duplicate = players.findIndex(saved => saved.id === playerId);
       if (duplicate < 0) players.push(player);
       else if ((Date.parse(player.updatedAt || '') || 0) > (Date.parse(players[duplicate].updatedAt || '') || 0)) players[duplicate] = player;
@@ -79,7 +82,7 @@ export function parseInjuryFeed(value: unknown): Feed {
   }
   const feedUpdatedAt = timestamp(root.timestamp);
   if (!feedUpdatedAt) warnings.push('ESPN did not supply a valid feed update time.');
-  return { feedUpdatedAt, teams, warnings: [...new Set(warnings)] };
+  return { feedUpdatedAt, teams, warnings: [...new Set(warnings)], verifiedPlayerKeys };
 }
 
 function savedFeed(row: CacheRow | null): LoadedFeed {
@@ -140,6 +143,16 @@ async function loadFeed(db: D1Database): Promise<LoadedFeed> {
   })();
   inFlight.set(db, operation);
   try { return await operation; } finally { inFlight.delete(db); }
+}
+
+/** Fresh, verified provider rows for alert comparisons; cached failures never drive alerts. */
+export async function loadAlertInjuryFeed(db: D1Database, now: Date): Promise<FreshFeed | null> {
+  const loaded = await loadFeed(db);
+  if (!loaded.feed || loaded.failed || !loaded.fetchedAt || !loaded.feed.feedUpdatedAt || !Array.isArray(loaded.feed.verifiedPlayerKeys)) return null;
+  const age = now.getTime() - Date.parse(loaded.feed.feedUpdatedAt);
+  const checkedAge = now.getTime() - Date.parse(loaded.fetchedAt);
+  if (!Number.isFinite(age) || age < -5 * 60_000 || age > STALE_AFTER || checkedAge > 2 * TTL) return null;
+  return loaded.feed as FreshFeed;
 }
 
 function easternDate(now: Date): string {

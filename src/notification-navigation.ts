@@ -10,13 +10,19 @@ export function createNotificationNavigation(search: string) {
   const single = (key: string) => params.getAll(key).length === 1 ? params.get(key) : null;
   let date = validDate(single('date'));
   const player = single('player');
+  const game = single('game');
+  const view = single('view');
+  let gameTarget = date && game && /^[1-9]\d{0,11}$/.test(game) && (view === 'injuries' || view === 'boxscore')
+    ? { date, gameId: game, view } as { date: string; gameId: string; view: 'injuries' | 'boxscore' } : undefined;
   return {
-    forceLive: ['date', 'player', 'latest'].some(key => params.has(key)),
+    forceLive: ['date', 'player', 'latest', 'game', 'view'].some(key => params.has(key)),
     playerId: player && /^[1-9]\d{0,11}$/.test(player) ? player : undefined,
     get date() { return date; },
+    get gameTarget() { return gameTarget; },
+    clearGameTarget: () => { gameTarget = undefined; },
     dashboardPath: () => `/api/dashboard${date ? `?date=${date}` : ''}`,
-    selectDate: (value: string) => { date = validDate(value); },
-    openLatest: () => { date = undefined; },
+    selectDate: (value: string) => { date = validDate(value); gameTarget = undefined; },
+    openLatest: () => { date = undefined; gameTarget = undefined; },
   };
 }
 

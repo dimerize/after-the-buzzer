@@ -16,6 +16,9 @@
       const frame = document.querySelector('#app-frame');
       const measurements = document.querySelector('#measurements');
       frame.style.width = `${width}px`;
+      const appParams = new URLSearchParams();
+      for (const key of ['date', 'game', 'view']) if (params.has(key)) appParams.set(key, params.get(key));
+      if (appParams.size) frame.src = `/?${appParams}`;
       frame.addEventListener('load', () => {
         frame.contentDocument.documentElement.style.setProperty('--app-safe-top', `${safe}px`);
         measurements.textContent = `Actual app: ${width}px wide, 844px high; simulated top safe area: ${safe}px. Open a game injury report inside the frame.`;
@@ -23,7 +26,7 @@
       window.measureInjuryDialog = () => {
         const doc = frame.contentDocument;
         const dialog = doc.querySelector('.injury-dialog[open]');
-        const body = dialog?.querySelector('.injury-dialog-body');
+        const body = dialog?.querySelector('.game-report-panel, .injury-dialog-body');
         if (!dialog || !body) return { open: false };
         const rect = dialog.getBoundingClientRect();
         const result = {
@@ -34,6 +37,7 @@
           bottomPass: rect.bottom <= frame.clientHeight - (width <= 500 ? 6 : 12),
           bodyHeight: body.clientHeight, contentHeight: body.scrollHeight,
           scrollable: body.scrollHeight > body.clientHeight,
+          horizontalTables: [...dialog.querySelectorAll('.boxscore-scroll')].map(table => ({ visible: table.clientWidth, content: table.scrollWidth, reachable: table.scrollWidth > table.clientWidth })),
         };
         measurements.textContent = JSON.stringify(result, null, 2);
         return result;

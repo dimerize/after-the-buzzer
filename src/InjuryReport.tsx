@@ -49,17 +49,51 @@ export function InjuryReportBody({ game, report, timezone, loading, error, demo,
   </div>;
 }
 
+export function useInjuryReport(game: Game, date: string, demo: boolean, active = true) {
+  const requestRef = useRef<() => void>(() => {});
+  const [clock, setClock] = useState(() => Date.now());
+  const key = injuryRequestKey(game, date);
+  const [state, setState] = useState<InjuryRequestState>({ key, data: null, loading: !demo, error: '' });
+  useEffect(() => {
+    if (demo) { setState({ key, data: null, loading: false, error: '' }); return; }
+    if (!active) return;
+    let current = true;
+    let inFlight: AbortController | null = null;
+    const refresh = () => {
+      if (!current || document.visibilityState === 'hidden') return;
+      setClock(Date.now());
+      if (inFlight) return;
+      const controller = new AbortController();
+      inFlight = controller;
+      setState(previous => beginInjuryRefresh(previous, key));
+      void fetchGameInjuries(game, date, controller.signal).then(data => {
+        if (current && !controller.signal.aborted) { setClock(Date.now()); setState(previous => completeInjuryRefresh(previous, key, data)); }
+      }).catch(error => {
+        if (current && !controller.signal.aborted) { setClock(Date.now()); setState(previous => previous.key === key ? { ...previous, loading: false, error: error instanceof Error ? error.message : 'Injury data unavailable.' } : previous); }
+      }).finally(() => { if (inFlight === controller) inFlight = null; });
+    };
+    requestRef.current = refresh;
+    refresh();
+    const timer = window.setInterval(refresh, 60_000);
+    document.addEventListener('visibilitychange', refresh);
+    window.addEventListener('online', refresh);
+    window.addEventListener('pageshow', refresh);
+    return () => { current = false; inFlight?.abort(); window.clearInterval(timer); document.removeEventListener('visibilitychange', refresh); window.removeEventListener('online', refresh); window.removeEventListener('pageshow', refresh); };
+  }, [key, game.id, game.away, game.home, game.status, date, demo, active]);
+  return { visible: visibleInjuryRequest(state, key), clock, refresh: () => requestRef.current() };
+}
+
+export function InjuryReportContent({ game, date, timezone, demo, active = true, onConnectLive }: Omit<Props, 'onClose'> & { active?: boolean }) {
+  const { visible, clock, refresh } = useInjuryReport(game, date, demo, active);
+  return <InjuryReportBody game={game} report={visible.data} timezone={timezone} loading={visible.loading} error={visible.error} demo={demo} now={new Date(clock)} onRetry={refresh} onConnectLive={onConnectLive}/>;
+}
+
 export default function InjuryReport({ game, date, timezone, demo, onClose, onConnectLive }: Props) {
   const dialog = useRef<HTMLDialogElement>(null);
   const openerRef = useRef<HTMLElement | null>(null);
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
-  const requestRef = useRef<() => void>(() => {});
-  const [retry, setRetry] = useState(0);
-  const [clock, setClock] = useState(() => Date.now());
-  const key = injuryRequestKey(game, date);
-  const [state, setState] = useState<InjuryRequestState>({ key, data: null, loading: !demo, error: '' });
-
+  const { visible, clock, refresh } = useInjuryReport(game, date, demo);
   useEffect(() => {
     const element = dialog.current;
     if (!element) return;
@@ -70,37 +104,9 @@ export default function InjuryReport({ game, date, timezone, demo, onClose, onCo
     element.querySelector<HTMLButtonElement>('.injury-close')?.focus();
     return () => { element.close(); document.body.style.overflow = originalOverflow; openerRef.current?.focus(); };
   }, []);
-
-  useEffect(() => {
-    if (demo) { setState({ key, data: null, loading: false, error: '' }); return; }
-    let active = true;
-    let inFlight: AbortController | null = null;
-    const refresh = () => {
-      if (!active || document.visibilityState === 'hidden' || !dialog.current?.open) return;
-      setClock(Date.now());
-      if (inFlight) return;
-      const controller = new AbortController();
-      inFlight = controller;
-      setState(previous => beginInjuryRefresh(previous, key));
-      void fetchGameInjuries(game, date, controller.signal).then(data => {
-        if (active && !controller.signal.aborted) { setClock(Date.now()); setState(previous => completeInjuryRefresh(previous, key, data)); }
-      }).catch(error => {
-        if (active && !controller.signal.aborted) { setClock(Date.now()); setState(previous => previous.key === key ? { ...previous, loading: false, error: error instanceof Error ? error.message : 'Injury data unavailable.' } : previous); }
-      }).finally(() => { if (inFlight === controller) inFlight = null; });
-    };
-    requestRef.current = refresh;
-    refresh();
-    const timer = window.setInterval(refresh, 60_000);
-    document.addEventListener('visibilitychange', refresh);
-    window.addEventListener('online', refresh);
-    window.addEventListener('pageshow', refresh);
-    return () => { active = false; inFlight?.abort(); window.clearInterval(timer); document.removeEventListener('visibilitychange', refresh); window.removeEventListener('online', refresh); window.removeEventListener('pageshow', refresh); };
-  }, [key, game.id, game.away, game.home, game.status, date, demo, retry]);
-
-  const visible = visibleInjuryRequest(state, key);
   return <dialog ref={dialog} className="injury-dialog" aria-labelledby="injury-dialog-title" onCancel={event => { event.preventDefault(); closeRef.current(); }} onClick={event => { if (event.target === dialog.current) closeRef.current(); }}>
-    <div className="injury-dialog-frame"><header className="injury-header"><h2 id="injury-dialog-title">Injury report <span>{game.away} at {game.home}</span></h2><div><button className="injury-refresh" type="button" aria-label="Refresh injury report" disabled={demo || visible.loading} onClick={() => { if (requestRef.current) requestRef.current(); else setRetry(value => value + 1); }}><RefreshCw size={17}/></button><button className="injury-close" type="button" aria-label="Close injury report" onClick={onClose}><X size={20}/></button></div></header>
-      <InjuryReportBody game={game} report={visible.data} timezone={timezone} loading={visible.loading} error={visible.error} demo={demo} now={new Date(clock)} onRetry={() => requestRef.current()} onConnectLive={onConnectLive}/>
+    <div className="injury-dialog-frame"><header className="injury-header"><h2 id="injury-dialog-title">Injury report <span>{game.away} at {game.home}</span></h2><div><button className="injury-refresh" type="button" aria-label="Refresh injury report" disabled={demo || visible.loading} onClick={refresh}><RefreshCw size={17}/></button><button className="injury-close" type="button" aria-label="Close injury report" onClick={onClose}><X size={20}/></button></div></header>
+      <InjuryReportBody game={game} report={visible.data} timezone={timezone} loading={visible.loading} error={visible.error} demo={demo} now={new Date(clock)} onRetry={refresh} onConnectLive={onConnectLive}/>
     </div>
   </dialog>;
 }

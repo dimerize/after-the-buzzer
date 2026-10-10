@@ -13,8 +13,40 @@ async function setup() {
   const sent = vi.spyOn(push, 'sendPush').mockResolvedValue({ ok: true, expired: false });
   const send = (input: unknown = { endpoint: device.endpoint }, headers = { Cookie: cookie, Origin: 'https://recap.example' }) =>
     worker.fetch(new Request('https://recap.example/api/push/test', { method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify(input) }), env);
-  return { ...state, env, sent, send, cookie };
+  const release = (headers = { Cookie: cookie, Origin: 'https://recap.example' }) => worker.fetch(new Request('https://recap.example/api/push/release', { method: 'POST', headers }), env);
+  return { ...state, env, sent, send, release, cookie };
 }
+
+describe('owner-requested release announcement', () => {
+  it('requires authentication and same origin', async () => {
+    const { release, sent, cookie } = await setup();
+    expect((await release({ Cookie: '', Origin: 'https://recap.example' })).status).toBe(401);
+    expect((await release({ Cookie: cookie, Origin: 'https://evil.example' })).status).toBe(403);
+    expect(sent).not.toHaveBeenCalled();
+  });
+  it('sends fixed release copy only once to existing registered devices', async () => {
+    const { release, sent } = await setup();
+    const response = await release();
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ accepted: true, alreadySent: false });
+    expect(sent).toHaveBeenCalledTimes(2);
+    expect(sent.mock.calls[0][1]).toMatchObject({ title: 'Buzzer update is live', body: expect.stringMatching(/box scores.*injury/i), url: '/?latest=1' });
+    expect(await (await release()).json()).toEqual({ accepted: true, alreadySent: true });
+    expect(sent).toHaveBeenCalledTimes(2);
+  });
+  it('does not claim acceptance when there are no registered devices', async () => {
+    const { release, sent, subscriptions } = await setup();
+    subscriptions.clear();
+    expect((await release()).status).toBe(502);
+    expect(sent).not.toHaveBeenCalled();
+  });
+  it('reports rejected delivery without consuming the release claim', async () => {
+    const { release, sent, notifications } = await setup();
+    sent.mockResolvedValue({ ok: false, expired: false });
+    expect((await release()).status).toBe(502);
+    expect(notifications.size).toBe(0);
+  });
+});
 
 describe('private, current-device push test', () => {
   it('requires the private session and exact same-origin mutation', async () => {

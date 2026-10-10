@@ -1,4 +1,4 @@
-const CACHE = 'after-the-buzzer-shell-2k7-v4';
+const CACHE = 'after-the-buzzer-shell-2k7-v5';
 const SHELL = ['/', '/icon.svg', '/icon-192.png', '/wordmark.svg', '/city-night.svg', '/manifest.webmanifest'];
 function notificationUrl(value) {
   const fallback = '/?latest=1';
@@ -8,14 +8,17 @@ function notificationUrl(value) {
     if (url.origin !== self.location.origin || url.pathname !== '/' || url.username || url.password || url.hash) return fallback;
     const keys = [...url.searchParams.keys()];
     if (keys.length === 1 && url.searchParams.get('latest') === '1') return fallback;
-    if (keys.some(key => !['date', 'player'].includes(key)) || new Set(keys).size !== keys.length) return fallback;
+    if (keys.some(key => !['date', 'player', 'game', 'view'].includes(key)) || new Set(keys).size !== keys.length) return fallback;
     const date = url.searchParams.get('date');
     if (!/^20\d{2}-\d{2}-\d{2}$/.test(date || '')) return fallback;
     const parsed = new Date(`${date}T12:00:00Z`);
     if (!Number.isFinite(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== date) return fallback;
     const player = url.searchParams.get('player');
     if (player !== null && !/^[1-9]\d{0,11}$/.test(player)) return fallback;
-    return `/?date=${date}${player === null ? '' : `&player=${player}`}`;
+    const game = url.searchParams.get('game');
+    const view = url.searchParams.get('view');
+    if ((game === null) !== (view === null) || (game !== null && (!/^[1-9]\d{0,11}$/.test(game) || !['injuries', 'boxscore'].includes(view)))) return fallback;
+    return `/?date=${date}${player === null ? '' : `&player=${player}`}${game === null ? '' : `&game=${game}&view=${view}`}`;
   } catch { return fallback; }
 }
 self.addEventListener('install', (event) => {
