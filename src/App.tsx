@@ -4,7 +4,7 @@ import { DEFAULT_PREFERENCES } from './shared/defaults';
 import { demoDashboard, SAMPLE_PLAYERS } from './demo';
 import type { Dashboard, Game, PlayerLine, Preferences, Tier, WatchPlayer } from './shared/types';
 import { createPreferenceSaveQueue, type PreferenceSaveQueue, type PreferenceUpdate } from './preference-save-queue';
-import { createNotificationNavigation, sendCurrentDeviceTest } from './notification-navigation';
+import { createNotificationNavigation, createNotificationOperations, notificationErrorMessage, sendCurrentDeviceTest } from './notification-navigation';
 import History from './History';
 import Schedule from './Schedule';
 import GameReport from './GameReport';
@@ -96,12 +96,14 @@ export default function App() {
   const [showInstall, setShowInstall] = useState(false);
   const [pushStatus, setPushStatus] = useState('');
   const [testingPush, setTestingPush] = useState(false);
+  const [pushOperations] = useState(() => createNotificationOperations(setPushStatus));
   const preferenceQueue = useRef<PreferenceSaveQueue | null>(null);
   const preferenceMode = useRef<'sample' | 'live' | null>(null);
   const preferenceRevision = useRef(0);
   const loadRevision = useRef(0);
 
   function setPreferenceSession(initial: Preferences, mode: 'sample' | 'live') {
+    if (preferenceMode.current !== mode) pushOperations.cancel('Notification request cancelled because the app session changed.');
     preferenceQueue.current?.dispose();
     preferenceMode.current = mode;
     preferenceRevision.current++;
@@ -119,6 +121,7 @@ export default function App() {
     });
   }
   function closePreferenceSession() {
+    pushOperations.cancel('Notification request cancelled because your session changed.');
     preferenceQueue.current?.dispose(); preferenceQueue.current = null; preferenceMode.current = null;
     preferenceRevision.current++;
   }
@@ -250,43 +253,41 @@ export default function App() {
     if (demo) { setPushStatus('Notifications require live mode.'); return; }
     if (!dashboard.capabilities.push) { setPushStatus('Push notifications are not configured.'); return; }
     if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) { setPushStatus('Push is unavailable in this browser. On iPhone, open the installed home-screen app.'); return; }
-    const activeQueue = preferenceQueue.current;
-    setBusy(true);
+    const operation = pushOperations.begin('Connecting this device’s notifications…');
+    setBusy(true); setTestingPush(false);
     try {
       const permissionRequest = Notification.requestPermission();
-      const [{ publicKey }, permission] = await Promise.all([api<{ publicKey: string }>('/api/push/key'), permissionRequest]);
-      if (activeQueue !== preferenceQueue.current || preferenceMode.current !== 'live') return;
+      const [{ publicKey }, permission] = await operation.step('Checking notification permission', signal => Promise.all([api<{ publicKey: string }>('/api/push/key', { signal }), permissionRequest]), 30_000);
       if (!publicKey) throw new Error('Push notifications are not configured.');
-      if (permission !== 'granted') { setPushStatus('Notifications blocked. Change permission in browser settings.'); return; }
-      const registration = await navigator.serviceWorker.ready;
+      if (permission !== 'granted') { operation.report('Notifications blocked. Change permission in browser settings.'); return; }
+      const registration = await operation.step('Starting notification service', () => navigator.serviceWorker.ready);
       const key = Uint8Array.from(atob(publicKey.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(publicKey.length / 4) * 4, '=')), (char) => char.charCodeAt(0));
-      const subscription = await registration.pushManager.getSubscription() || await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
-      await api('/api/push/subscribe', { method: 'POST', body: JSON.stringify(subscription.toJSON()) });
-      if (activeQueue !== preferenceQueue.current || preferenceMode.current !== 'live') return;
-      if ((enableLiveAlerts || enableInjuryAlerts) && !await updatePreferences((current) => ({ ...current, ...(enableLiveAlerts ? { liveAlerts: true } : {}), ...(enableInjuryAlerts ? { injuryAlerts: true } : {}) }))) {
-        setPushStatus('Notifications enabled. Alert settings could not be saved.'); return;
+      const existing = await operation.step('Checking notification subscription', () => registration.pushManager.getSubscription());
+      const subscription = existing || await operation.step('Registering this device for notifications', () => registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key }));
+      await operation.step('Saving this device’s notification subscription', signal => api('/api/push/subscribe', { method: 'POST', body: JSON.stringify(subscription.toJSON()), signal }));
+      if ((enableLiveAlerts || enableInjuryAlerts) && !await operation.step('Saving alert settings', () => updatePreferences((current) => ({ ...current, ...(enableLiveAlerts ? { liveAlerts: true } : {}), ...(enableInjuryAlerts ? { injuryAlerts: true } : {}) })))) {
+        operation.report('Notifications enabled. Alert settings could not be saved.'); return;
       }
-      setPushStatus(`Notifications enabled.${enableLiveAlerts ? ' Live player alerts on.' : ''}${enableInjuryAlerts ? ' Injury alerts on. Select players in Watchlist.' : ''} Quiet hours apply.`);
-    } catch (error) { if (activeQueue === preferenceQueue.current) setPushStatus(error instanceof Error ? error.message : 'Notifications could not be enabled.'); }
-    finally { setBusy(false); }
+      operation.report(`Notifications enabled.${enableLiveAlerts ? ' Live player alerts on.' : ''}${enableInjuryAlerts ? ' Injury alerts on. Select players in Watchlist.' : ''} Quiet hours apply.`);
+    } catch (error) { operation.report(notificationErrorMessage(error, 'Notifications could not be enabled. Please try again.')); }
+    finally { if (operation.isCurrent()) { setBusy(false); operation.end(); } }
   }
   async function testPush() {
     if (!dashboard || demo) { setPushStatus('Notifications require live mode.'); return; }
     if (!dashboard.capabilities.push) { setPushStatus('Push notifications are not configured.'); return; }
     if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) { setPushStatus('On iPhone, add this HTTPS site to your home screen, open it there, then enable notifications.'); return; }
-    const activeQueue = preferenceQueue.current;
-    setBusy(true); setTestingPush(true); setPushStatus('');
+    const operation = pushOperations.begin('Checking this device’s notifications…');
+    setBusy(true); setTestingPush(true);
     try {
-      await sendCurrentDeviceTest(Notification.permission, async () => {
+      await sendCurrentDeviceTest(Notification.permission, async signal => {
         const registration = await navigator.serviceWorker.getRegistration();
+        signal.throwIfAborted();
         return registration ? registration.pushManager.getSubscription() : null;
-      }, async endpoint => {
-        if (activeQueue !== preferenceQueue.current || preferenceMode.current !== 'live') return;
-        await api('/api/push/test', { method: 'POST', body: JSON.stringify({ endpoint }) });
-      });
-      if (activeQueue === preferenceQueue.current && preferenceMode.current === 'live') setPushStatus('Test submitted. Check this device’s notifications.');
-    } catch (error) { if (activeQueue === preferenceQueue.current) setPushStatus(error instanceof Error ? error.message : 'Test notification failed.'); }
-    finally { setBusy(false); setTestingPush(false); }
+      }, async (endpoint, signal) => {
+        await api('/api/push/test', { method: 'POST', body: JSON.stringify({ endpoint }), signal });
+      }, operation);
+    } catch (error) { operation.report(notificationErrorMessage(error, 'Test notification failed. Please try again.')); }
+    finally { if (operation.isCurrent()) { setBusy(false); setTestingPush(false); operation.end(); } }
   }
   function changePlayer(id: string, patch: Partial<WatchPlayer>) { void updatePreferences((current) => ({ ...current, players: current.players.map((p) => p.id === id ? { ...p, ...patch } : p) })); }
   function addPlayer(player: WatchPlayer) { void updatePreferences((current) => current.players.some((p) => p.id === player.id) ? current : ({ ...current, players: [...current.players, { ...player, tier: 'interest', alerts: false, injuryAlerts: false }] })); }
@@ -349,7 +350,10 @@ export default function App() {
 
       {page === 'settings' && <div className="settings-layout"><div><Panel title="Edition Schedule" className="settings-panel"><p className="setting-description">Publishes at bedtime. Late games update the same date.</p><div className="form-grid"><label>Bedtime<input type="time" value={preferences.bedtime} onChange={(event) => event.target.value && void updatePreferences((current) => ({...current,bedtime:event.target.value}))}/></label><label>Time zone<select value={preferences.timezone} onChange={(event) => void updatePreferences((current) => ({...current,timezone:event.target.value}))}>{Array.from(new Set([preferences.timezone,'America/New_York','America/Chicago','America/Denver','America/Los_Angeles','America/Phoenix','America/Toronto','Europe/London','Europe/Paris','Asia/Tokyo','Australia/Sydney','UTC'])).map((zone) => <option key={zone} value={zone}>{zone.replaceAll('_',' ')}</option>)}</select></label></div></Panel>
         <Panel title="Recap Options" className="settings-panel"><div className="length-options">{([{id:'quick',title:'Quick',description:'Up to 2 stories and favorite players.'},{id:'normal',title:'Standard',description:'Up to 3 stories and favorite players.'},{id:'nerd',title:'Full Detail',description:'Up to 8 stories and additional player statistics.'}] as const).map((option) => <button key={option.id} className={'length-option '+(preferences.length === option.id ? 'selected' : '')} aria-pressed={preferences.length === option.id} onClick={() => void updatePreferences((current) => ({...current,length:option.id}))}><span className="radio-circle">{preferences.length === option.id && <Check size={12}/>}</span><span><strong>{option.title}</strong><small>{option.description}</small></span></button>)}</div><Toggle label="Hide game scores" detail="Player stats and recap stories remain visible." value={preferences.hideScores} onChange={(value) => void updatePreferences((current) => ({...current,hideScores:value}))}/></Panel>
-        <Panel title="Notifications" className="settings-panel"><Toggle label="Injury-status alerts" detail="Pregame changes for players selected in Watchlist. Quiet hours apply." value={!!preferences.injuryAlerts} onChange={(value) => value ? void enablePush(false, true) : void updatePreferences((current) => ({...current,injuryAlerts:false}))}/><Toggle label="Live player alerts" detail="For players with alerts enabled." value={preferences.liveAlerts} onChange={(value) => value ? void enablePush(true) : void updatePreferences((current) => ({...current,liveAlerts:false}))}/><div className="form-grid quiet-hours"><label>Quiet hours start<input type="time" value={preferences.quietStart} onChange={(event) => event.target.value && void updatePreferences((current) => ({...current,quietStart:event.target.value}))}/></label><label>Quiet hours end<input type="time" value={preferences.quietEnd} onChange={(event) => event.target.value && void updatePreferences((current) => ({...current,quietEnd:event.target.value}))}/></label></div><div className="notification-actions"><button className="primary-button" onClick={() => void enablePush()} disabled={busy}><span className="control-glyph green"><Bell size={13}/></span>{busy && !testingPush ? 'Connecting…' : 'Enable bedtime notifications'}</button><button className="small-button" onClick={() => void testPush()} disabled={busy}><Bell size={14}/>{testingPush ? 'Sending…' : 'Test notification'}</button></div><p className="settings-note">iPhone: open this HTTPS site in Safari → Share → Add to Home Screen. Open the installed app, enable notifications, and allow permission. Requires iOS 16.4 or later.</p>{pushStatus && <p className="push-message" role="status">{pushStatus}</p>}</Panel></div>
+        <Panel title="Notifications" className="settings-panel"><Toggle label="Injury-status alerts" detail="Pregame changes for players selected in Watchlist. Quiet hours apply." value={!!preferences.injuryAlerts} onChange={(value) => value ? void enablePush(false, true) : void updatePreferences((current) => ({...current,injuryAlerts:false}))}/><Toggle label="Live player alerts" detail="For players with alerts enabled." value={preferences.liveAlerts} onChange={(value) => value ? void enablePush(true) : void updatePreferences((current) => ({...current,liveAlerts:false}))}/><div className="form-grid quiet-hours"><label>Quiet hours start<input type="time" value={preferences.quietStart} onChange={(event) => event.target.value && void updatePreferences((current) => ({...current,quietStart:event.target.value}))}/></label><label>Quiet hours end<input type="time" value={preferences.quietEnd} onChange={(event) => event.target.value && void updatePreferences((current) => ({...current,quietEnd:event.target.value}))}/></label></div><div className="notification-actions"><button className="primary-button" onClick={() => void enablePush()} disabled={busy}><span className="control-glyph green"><Bell size={13}/></span>{busy && !testingPush ? 'Connecting…' : 'Enable bedtime notifications'}</button><button className="small-button" onClick={() => void testPush()} disabled={busy}><Bell size={14}/>{testingPush ? 'Sending…' : 'Test notification'}</button></div>
+          {pushStatus && <p className="push-message" role="status">{pushStatus}</p>}
+          <p className="settings-note">iPhone: open this HTTPS site in Safari → Share → Add to Home Screen. Open the installed app, enable notifications, and allow permission. Requires iOS 16.4 or later.</p>
+        </Panel></div>
         <div><Panel title="Install" className="settings-panel install-panel"><ArrowDownToLine size={38}/><button className="primary-button" onClick={() => void install()}><span className="control-glyph blue"><Plus size={14}/></span>Add to home screen</button></Panel>
         <Panel title="Connection" className="settings-panel"><div className="connection-line"><span>Data source</span><strong>{demo ? 'Fictional sample' : 'ESPN'}</strong></div><div className="connection-line"><span>Preferences</span><strong>{demo ? 'Device only' : dashboard.capabilities.persistent ? 'Server storage' : 'Storage unavailable'}</strong></div><div className="connection-line"><span>Summary</span><strong>{dashboard.capabilities.ai ? 'AI assisted' : 'Stat templates'}</strong></div><div className="budget-display"><span>AI budget reserved<strong>{'$'+dashboard.budget.used.toFixed(2)+' / $'+dashboard.budget.limit.toFixed(2)}</strong></span><div><i style={{width:Math.min(100,dashboard.budget.limit ? dashboard.budget.used/dashboard.budget.limit*100 : 0)+'%'}}/></div><small>{dashboard.budget.month}. Reserved limit, not billed cost. Sample mode has no AI charges.</small></div>{demo ? <button className="primary-button" onClick={() => void loadLive()}><span className="control-glyph green"><Radio size={13}/></span>Connect live data</button> : <div className="account-actions"><button className="small-button" onClick={() => useSample()}>Sample mode</button><button className="small-button" onClick={() => void logout()} disabled={busy}><LogOut size={14}/>Sign out</button></div>}</Panel><div className="info-bar"><Check size={16}/><span>Changes save automatically.{demo && ' Sample settings are device-only.'}</span></div></div></div>}
       {page !== 'settings' && page !== 'games' && <div className="session-bar"><span>{demo ? 'SAMPLE DATA' : 'ESPN GAME DATA'}</span><span>Bedtime: {timeLabel(preferences.bedtime)}</span><span>{night.partial ? 'PARTIAL EDITION' : 'Updated '+updateTime}</span></div>}

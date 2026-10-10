@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Notification app regression fixture</title>
+    <style>
+      #fixture-controls{position:relative;z-index:40;background:#101827;color:#fff;padding:10px;font:13px system-ui;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+      #fixture-controls button,#fixture-controls select{background:#203857;color:#fff;border:1px solid #9ab4ce;padding:6px;min-height:36px}
+      #fixture-evidence{width:100%;white-space:pre-wrap;margin:0;font-size:12px}
+    </style>
+  </head>
+  <body>
+    <aside id="fixture-controls" aria-label="Local test controls">
+      <label>Scenario <select id="scenario"><option value="empty-error">Empty native error</option><option value="server-rejection">Provider rejection</option><option value="accepted">Accepted</option><option value="queue-refresh">Dashboard refresh during lookup</option><option value="delayed">Delayed lookup</option></select></label>
+      <button id="resolve-dashboard">Complete dashboard load</button>
+      <button id="resolve-subscription">Complete subscription lookup</button>
+      <pre id="fixture-evidence">Local fixture: every API write is intercepted. No real push is sent.</pre>
+    </aside>
+    <div id="root"></div>
+    <script type="module">
+      import React from 'react';
+      import { createRoot } from 'react-dom/client';
+      import App from '/src/App.tsx';
+      import { demoDashboard } from '/src/demo.ts';
+      import { DEFAULT_PREFERENCES } from '/src/shared/defaults.ts';
+      import '/src/styles.css';
+
+      const scenario = document.querySelector('#scenario');
+      const evidence = document.querySelector('#fixture-evidence');
+      let testRequests = 0, dashboardRequests = 0;
+      let releaseDashboard, releaseSubscription;
+      const updateEvidence = () => { evidence.textContent = `Local mocks only. Push requests: ${testRequests}. Dashboard requests: ${dashboardRequests}. Pending dashboard: ${!!releaseDashboard}. Pending subscription: ${!!releaseSubscription}.`; };
+      const subscription = { endpoint: 'https://web.push.apple.com/TEST-ONLY', toJSON() { return { endpoint: this.endpoint, keys: { p256dh: 'fixture', auth: 'fixture' } }; } };
+      const registration = { pushManager: {
+        async getSubscription() {
+          if (scenario.value === 'empty-error') throw new DOMException('', 'AbortError');
+          if (scenario.value === 'queue-refresh' || scenario.value === 'delayed') return new Promise(resolve => { releaseSubscription = () => { releaseSubscription = undefined; resolve(subscription); updateEvidence(); }; updateEvidence(); });
+          return subscription;
+        },
+        async subscribe() { return subscription; }
+      } };
+      Object.defineProperty(window, 'Notification', { configurable: true, value: class {
+        static permission = 'granted';
+        static async requestPermission() { return 'granted'; }
+      } });
+      Object.defineProperty(window, 'PushManager', { configurable: true, value: class {} });
+      Object.defineProperty(navigator, 'serviceWorker', { configurable: true, value: {
+        async getRegistration() { return registration; }, ready: Promise.resolve(registration)
+      } });
+      const dashboard = demoDashboard(structuredClone(DEFAULT_PREFERENCES));
+      dashboard.capabilities = { ...dashboard.capabilities, push: true, liveData: true, persistent: true };
+      const originalFetch = window.fetch.bind(window);
+      window.fetch = async (input, options = {}) => {
+        const url = new URL(typeof input === 'string' ? input : input.url, location.href);
+        const method = options.method || (input instanceof Request ? input.method : 'GET');
+        if (url.origin !== location.origin || !url.pathname.startsWith('/api/')) {
+          if (!['GET', 'HEAD'].includes(method)) throw new Error('The local fixture blocks unmocked writes.');
+          return originalFetch(input, options);
+        }
+        if (url.pathname === '/api/dashboard') {
+          dashboardRequests++; updateEvidence();
+          if (dashboardRequests > 1 && scenario.value === 'queue-refresh') await new Promise(resolve => { releaseDashboard = () => { releaseDashboard = undefined; resolve(); updateEvidence(); }; updateEvidence(); });
+          return Response.json(dashboard);
+        }
+        if (url.pathname === '/api/push/test') {
+          testRequests++; updateEvidence();
+          return scenario.value === 'server-rejection'
+            ? Response.json({ error: 'The test notification was not accepted by the push service. Wait a minute and try again.' }, { status: 502 })
+            : Response.json({ ok: true });
+        }
+        if (url.pathname === '/api/push/key') return Response.json({ publicKey: btoa(String.fromCharCode(4, ...new Uint8Array(64))) });
+        if (url.pathname === '/api/preferences' || url.pathname === '/api/push/subscribe') return Response.json({ ok: true });
+        return Response.json({ error: 'API route is not used by this local fixture.' }, { status: 501 });
+      };
+      localStorage.setItem('buzzer:mode', 'live');
+      document.querySelector('#resolve-dashboard').onclick = () => releaseDashboard?.();
+      document.querySelector('#resolve-subscription').onclick = () => releaseSubscription?.();
+      createRoot(document.querySelector('#root')).render(React.createElement(App));
+    </script>
+  </body>
+</html>

@@ -26,11 +26,81 @@ export function createNotificationNavigation(search: string) {
   };
 }
 
+export function notificationErrorMessage(error: unknown, fallback: string): string {
+  return (error instanceof Error ? error.message.trim() : '') || fallback;
+}
+
+export interface NotificationOperation {
+  readonly signal: AbortSignal;
+  isCurrent(): boolean;
+  report(message: string): void;
+  step<T>(stage: string, work: (signal: AbortSignal) => Promise<T>, timeoutMs?: number): Promise<T>;
+  end(): void;
+}
+
+/** Notification attempts have their own lifetime, independent of preference saves. */
+export function createNotificationOperations(onStatus: (message: string) => void, timeoutMs = 15_000) {
+  let current: { operation: NotificationOperation; controller: AbortController } | undefined;
+  return {
+    begin(message: string): NotificationOperation {
+      current?.controller.abort(new Error('Notification request replaced by a newer request.'));
+      const controller = new AbortController();
+      const { signal } = controller;
+      const operation: NotificationOperation = {
+        signal,
+        isCurrent: () => current?.operation === operation,
+        report(value) {
+          if (operation.isCurrent()) onStatus(signal.aborted
+            ? notificationErrorMessage(signal.reason, 'Notification request cancelled.') : value);
+        },
+        step(stage, work, deadline = timeoutMs) {
+          if (signal.aborted) return Promise.reject(signal.reason);
+          operation.report(`${stage}…`);
+          return new Promise((resolve, reject) => {
+            const cleanup = () => { clearTimeout(timer); signal.removeEventListener('abort', aborted); };
+            const aborted = () => { cleanup(); reject(signal.reason); };
+            const timer = setTimeout(() => controller.abort(new Error(`Timed out while ${stage.toLowerCase()}.`)), deadline);
+            signal.addEventListener('abort', aborted, { once: true });
+            try {
+              Promise.resolve(work(signal)).then(value => {
+                cleanup();
+                if (signal.aborted) reject(signal.reason); else resolve(value);
+              }, error => { cleanup(); reject(error); });
+            } catch (error) { cleanup(); reject(error); }
+          });
+        },
+        end() { if (operation.isCurrent()) current = undefined; },
+      };
+      current = { operation, controller };
+      operation.report(message);
+      return operation;
+    },
+    cancel(message: string) {
+      if (!current) return;
+      current.controller.abort(new Error(message));
+      current.operation.report(message);
+    },
+  };
+}
+
 /** Reads an existing subscription only: this action never asks permission or subscribes. */
-export async function sendCurrentDeviceTest(permission: NotificationPermission, getSubscription: () => Promise<{ endpoint: string } | null>, send: (endpoint: string) => Promise<void>) {
-  if (permission === 'denied') throw new Error('Allow notifications in browser or app settings, then enable bedtime notifications.');
-  if (permission !== 'granted') throw new Error('Enable bedtime notifications first.');
-  const subscription = await getSubscription();
-  if (!subscription?.endpoint) throw new Error('Enable bedtime notifications first.');
-  await send(subscription.endpoint);
+export async function sendCurrentDeviceTest(
+  permission: NotificationPermission,
+  getSubscription: (signal: AbortSignal) => Promise<{ endpoint: string } | null>,
+  send: (endpoint: string, signal: AbortSignal) => Promise<void>,
+  operation?: NotificationOperation,
+) {
+  const attempt = operation ?? createNotificationOperations(() => {}).begin('Checking this device’s notifications…');
+  try {
+    if (permission === 'denied') throw new Error('Allow notifications in browser or app settings, then enable bedtime notifications.');
+    if (permission !== 'granted') throw new Error('Enable bedtime notifications first.');
+    const subscription = await attempt.step('Checking this device’s notification subscription', getSubscription);
+    if (!subscription?.endpoint) throw new Error('Enable bedtime notifications first.');
+    await attempt.step('Submitting test notification', signal => send(subscription.endpoint, signal));
+    attempt.report('Test submitted. Check this device’s notifications.');
+  } catch (error) {
+    const message = notificationErrorMessage(error, 'Test notification failed. Please try again.');
+    attempt.report(message);
+    throw new Error(message);
+  } finally { if (!operation) attempt.end(); }
 }

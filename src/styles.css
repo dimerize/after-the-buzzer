@@ -173,3 +173,5 @@ body::after{
 }
 .auth-screen,.loading-screen{min-height:calc(100dvh - var(--app-top-space))}
 @media(max-width:800px){:root{--app-top-gap:16px}}
+
+.notification-actions + .push-message{margin:0 6px 10px;padding:8px;border-left:2px solid #83bbdf;background:#10233b;color:#deefff;font-size:14px;line-height:1.4;overflow-wrap:anywhere}
