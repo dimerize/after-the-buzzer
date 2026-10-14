@@ -3,19 +3,36 @@ import { describe, expect, it } from 'vitest';
 import { ScheduleTable } from '../src/Schedule';
 import { fetchSchedule, formatScheduleDate, formatScheduleTipoff, nextScheduleDate, shiftScheduleDate, visibleScheduleRequest } from '../src/schedule-view';
 import type { Game } from '../src/shared/types';
+import { resolveScheduleDate } from '../src/schedule-view';
 
 const game: Game = { id: '1', away: 'SAS', home: 'LAL', awayScore: 123, homeScore: 99, status: 'final', statusText: 'Final', startsAt: '2026-10-11T02:30:00Z', sourceUrl: 'https://www.espn.com/nba/game/_/gameId/1' };
 
 describe('schedule calendar', () => {
+  it('rolls the default date forward while retaining an explicitly selected archive day', () => {
+    expect(resolveScheduleDate(null, new Date('2026-10-14T04:01:00Z'))).toBe('2026-10-14');
+    expect(resolveScheduleDate('2026-10-01', new Date('2026-10-14T04:01:00Z'))).toBe('2026-10-01');
+  });
+  it('shows multiple watched players by team, distinguishing favorites from following', () => {
+    const html = renderToStaticMarkup(<ScheduleTable games={[game]} date="2026-10-10" timezone="America/New_York" hideScores={false} players={[
+      { id: '1', name: 'Favorite Spur', team: 'SA', tier: 'favorite', alerts: false },
+      { id: '2', name: 'Followed Spur', team: 'SAS', tier: 'interest', alerts: false },
+      { id: '3', name: 'Other Team', team: 'NY', tier: 'favorite', alerts: false },
+    ]}/>);
+    expect(html).toContain('Favorite Spur'); expect(html).toContain('Followed Spur');
+    expect(html).not.toContain('Other Team'); expect(html).toContain('Favorite: Favorite Spur');
+    expect(html).toContain('Following: Followed Spur'); expect(html).toContain('/headshots/nba/players/full/1.png');
+  });
   it.each([
     ['2026-10-10T09:59:59Z', '2026-10-10'],
-    ['2026-10-10T10:00:00Z', '2026-10-11'],
+    ['2026-10-10T10:00:00Z', '2026-10-10'],
     ['2026-03-08T09:59:59Z', '2026-03-08'],
-    ['2026-03-08T10:00:00Z', '2026-03-09'],
+    ['2026-03-08T10:00:00Z', '2026-03-08'],
     ['2026-11-01T10:59:59Z', '2026-11-01'],
-    ['2026-11-01T11:00:00Z', '2026-11-02'],
-    ['2026-12-31T12:00:00Z', '2027-01-01'],
-  ])('defaults to the next Eastern basketball date at %s', (now, expected) => {
+    ['2026-11-01T11:00:00Z', '2026-11-01'],
+    ['2026-12-31T12:00:00Z', '2026-12-31'],
+    ['2027-01-01T04:59:59Z', '2026-12-31'],
+    ['2027-01-01T05:00:00Z', '2027-01-01'],
+  ])('defaults to the current Eastern calendar date at %s', (now, expected) => {
     expect(nextScheduleDate(new Date(now))).toBe(expected);
   });
 

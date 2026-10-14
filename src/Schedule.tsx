@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { ArrowUpRight, ChevronLeft, ChevronRight, LoaderCircle, RefreshCw } from 'lucide-react';
-import type { Game, Preferences } from './shared/types';
+import type { Game, Preferences, WatchPlayer } from './shared/types';
+import { watchedPlayersForGame } from './shared/team-matching';
 import TeamLabel from './TeamLabel';
-import { fetchSchedule, formatScheduleDate, formatScheduleTipoff, nextScheduleDate, shiftScheduleDate, visibleScheduleRequest, type ScheduleRequestState } from './schedule-view';
+import { fetchSchedule, formatScheduleDate, formatScheduleTipoff, resolveScheduleDate, shiftScheduleDate, visibleScheduleRequest, type ScheduleRequestState } from './schedule-view';
 import './schedule.css';
 
-export function ScheduleTable({ games, date, timezone, hideScores, onOpenGame }: { games: Game[]; date: string; timezone: string; hideScores: boolean; onOpenGame?: (game: Game, date: string) => void }) {
+export function ScheduleTable({ games, date, timezone, hideScores, onOpenGame, players = [] }: { games: Game[]; date: string; timezone: string; hideScores: boolean; players?: WatchPlayer[]; onOpenGame?: (game: Game, date: string) => void }) {
   return <div className="schedule-table-wrap"><table className="schedule-table" aria-label={`NBA games for ${date}`}>
     <colgroup><col className="schedule-time-col"/><col/><col/><col className="schedule-score-col"/><col className="schedule-status-col"/><col className="schedule-link-col"/></colgroup>
     <thead><tr><th scope="col">Tipoff</th><th scope="col">Away</th><th scope="col">Home</th><th scope="col">Score</th><th scope="col">Status</th><th scope="col"><span className="schedule-sr-only">Source</span></th></tr></thead>
@@ -16,15 +17,23 @@ export function ScheduleTable({ games, date, timezone, hideScores, onOpenGame }:
         <td>{onOpenGame ? <button className="schedule-game-open" aria-label={`Open ${game.status === 'scheduled' || game.status === 'postponed' ? 'injury report' : 'box score'} for ${game.away} at ${game.home}`} onClick={event => { event.stopPropagation(); onOpenGame(game, date); }}><time dateTime={game.startsAt}>{tipoff.time}</time>{tipoff.date && <small>{tipoff.date}</small>}</button> : <><time dateTime={game.startsAt}>{tipoff.time}</time>{tipoff.date && <small>{tipoff.date}</small>}</>}</td>
         <th scope="row"><TeamLabel team={game.away} /></th><td className="schedule-team"><TeamLabel team={game.home} /></td>
         <td className="schedule-score" aria-label={hideScores && ['live', 'final'].includes(game.status) ? 'Score hidden' : undefined}>{score}</td>
-        <td className="schedule-game-status">{game.status === 'scheduled' ? 'Scheduled' : game.statusText || game.status}</td>
+        <td className="schedule-game-status">{game.status === 'scheduled' ? 'Scheduled' : game.statusText || game.status}<div className="schedule-watched">{watchedPlayersForGame(game, players).map(player => <span className={player.tier === 'favorite' ? 'schedule-favorite' : 'schedule-following'} key={player.id} title={`${player.tier === 'favorite' ? 'Favorite' : 'Following'}: ${player.name}`}><img src={`https://a.espncdn.com/i/headshots/nba/players/full/${player.id}.png`} alt="" loading="lazy" onError={event => { event.currentTarget.hidden = true; }}/><span>{player.tier === 'favorite' ? '★ ' : ''}{player.name}</span></span>)}</div></td>
         <td>{game.sourceUrl && <a href={game.sourceUrl} target="_blank" rel="noreferrer" aria-label={`${game.away} at ${game.home}: ESPN game details`} onClick={event => event.stopPropagation()}><ArrowUpRight size={15}/></a>}</td>
       </tr>;
     })}</tbody>
   </table></div>;
 }
 
-export default function Schedule({ preferences, demo, onConnectLive, onOpenGame, refreshKey = 0 }: { preferences: Pick<Preferences, 'timezone' | 'hideScores'>; demo: boolean; onConnectLive: () => void; onOpenGame: (game: Game, date: string) => void; refreshKey?: number }) {
-  const [date, setDate] = useState(() => nextScheduleDate());
+export default function Schedule({ preferences, demo, onConnectLive, onOpenGame, refreshKey = 0 }: { preferences: Pick<Preferences, 'timezone' | 'hideScores' | 'players'>; demo: boolean; onConnectLive: () => void; onOpenGame: (game: Game, date: string) => void; refreshKey?: number }) {
+  const [selectedDate, setDate] = useState<string | null>(null);
+  const [clock, setClock] = useState(() => new Date());
+  const date = resolveScheduleDate(selectedDate, clock);
+  useEffect(() => {
+    const update = () => setClock(new Date());
+    const timer = setInterval(update, 60_000);
+    window.addEventListener('focus', update); document.addEventListener('visibilitychange', update);
+    return () => { clearInterval(timer); window.removeEventListener('focus', update); document.removeEventListener('visibilitychange', update); };
+  }, []);
   const [attempt, setAttempt] = useState(0);
   const key = `${date}:${attempt}:${refreshKey}:${demo}`;
   const [state, setState] = useState<ScheduleRequestState>({ key: '', data: null, loading: true, error: '' });
@@ -49,7 +58,7 @@ export default function Schedule({ preferences, demo, onConnectLive, onOpenGame,
       <button aria-label="Previous schedule date" onClick={() => previous && setDate(previous)} disabled={!previous}><ChevronLeft size={19}/></button>
       <div className="schedule-date"><label htmlFor="schedule-date">{formatScheduleDate(date)}</label><input id="schedule-date" aria-label="Schedule date" type="date" value={date} min="2000-01-01" max="2099-12-31" onChange={event => { if (shiftScheduleDate(event.target.value, 0)) setDate(event.target.value); }}/></div>
       <button aria-label="Next schedule date" onClick={() => next && setDate(next)} disabled={!next}><ChevronRight size={19}/></button>
-      <button className="schedule-next-slate" onClick={() => setDate(nextScheduleDate())}>Next slate</button>
+      <button className="schedule-next-slate" onClick={() => { setClock(new Date()); setDate(null); }}>Today</button>
     </div>
     <div className="schedule-context"><span>NBA slate: Eastern time</span><span>Tipoffs: {preferences.timezone.replaceAll('_', ' ')}</span></div>
     <section className="panel schedule-panel"><div className="panel-title"><h2>Games{!demo && visible.data ? ` (${visible.data.games.length})` : ''}</h2><button onClick={() => setAttempt(value => value + 1)} disabled={demo || visible.loading} aria-label="Refresh schedule"><RefreshCw size={14}/></button></div>
@@ -57,7 +66,7 @@ export default function Schedule({ preferences, demo, onConnectLive, onOpenGame,
         : visible.loading ? <div className="schedule-feedback" role="status"><LoaderCircle className="spin" size={19}/><span>Loading schedule…</span></div>
           : visible.error ? <div className="schedule-feedback" role="alert"><span>{visible.error}</span><button className="small-button" onClick={() => setAttempt(value => value + 1)}>Retry</button>{visible.error.startsWith('Sign in') && <button className="small-button" onClick={onConnectLive}>Sign in</button>}</div>
             : visible.data && <>
-              {visible.data.games.length ? <ScheduleTable games={visible.data.games} date={date} timezone={preferences.timezone} hideScores={preferences.hideScores} onOpenGame={onOpenGame}/> : <div className="schedule-feedback" role="status">No games reported for {formatScheduleDate(date)}.</div>}
+              {visible.data.games.length ? <ScheduleTable games={visible.data.games} date={date} timezone={preferences.timezone} hideScores={preferences.hideScores} players={preferences.players} onOpenGame={onOpenGame}/> : <div className="schedule-feedback" role="status">No games reported for {formatScheduleDate(date)}.</div>}
               {!!visible.data.warnings?.length && <div className="schedule-notices" role="status">{visible.data.warnings.map((warning, index) => <p key={index}>{warning}</p>)}</div>}
               <div className="schedule-source"><span>ESPN schedule</span>{updated && Number.isFinite(updated.getTime()) && <time dateTime={visible.data.updatedAt}>Updated {new Intl.DateTimeFormat('en-US', { timeZone: preferences.timezone, month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(updated)}</time>}</div>
             </>}

@@ -2,13 +2,15 @@ import type { Game } from './shared/types';
 
 export interface ScheduleData { date: string; games: Game[]; source: 'espn'; updatedAt: string; warnings?: string[]; }
 export interface ScheduleRequestState { key: string; data: ScheduleData | null; loading: boolean; error: string; }
-/** Same 06:00 calendar rollover as worker/schedule.ts, fixed to the ESPN slate timezone. */
-export function nextScheduleDate(now = new Date()): string {
+/** Games opens on today's Eastern calendar date, independently of recap rollover. */
+export function currentScheduleDate(now = new Date()): string {
   const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', {
     timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', hourCycle: 'h23',
   }).formatToParts(now).map(({ type, value }) => [type, value]));
-  return new Date(Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day) + (Number(parts.hour) < 6 ? 0 : 1))).toISOString().slice(0, 10);
+  return `${parts.year}-${parts.month}-${parts.day}`;
 }
+export const nextScheduleDate = currentScheduleDate;
+export function resolveScheduleDate(selected: string | null, now = new Date()): string { return selected ?? currentScheduleDate(now); }
 
 export function shiftScheduleDate(date: string, days: number): string | null {
   if (!/^20\d{2}-\d{2}-\d{2}$/.test(date) || !Number.isInteger(days)) return null;
