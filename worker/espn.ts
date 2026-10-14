@@ -261,6 +261,7 @@ export async function fetchNight(date: string, preferences: Preferences): Promis
     });
   }
   const night = buildRecap(scoreboard.games, players, preferences, { date, season: scoreboard.season, seasonType: scoreboard.seasonType });
+  night.scheduleComplete = scoreboard.warnings.length === 0;
   const rookieCoverage = rookieWarnings.length ? [`Rookie status unavailable for ${rookieWarnings.join(', ')} in ${scoreboard.season}; unverified rookie labels are omitted.`] : [];
   night.warnings = [...new Set([...warnings, ...night.warnings, ...rookieCoverage])];
   if (warnings.length) {

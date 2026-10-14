@@ -9,7 +9,7 @@ const favorites = DEFAULT_PREFERENCES.players;
 function render(lines: PlayerLine[] = [], selectedId = '5104157', players: WatchPlayer[] = favorites, demo = false) {
   return renderToStaticMarkup(<PlayerRoster players={players} lines={lines} games={[game()]} selectedId={selectedId} onSelect={() => {}} demo={demo} />);
 }
-function rows(html: string) { return html.match(/<button\b[^>]*>[\s\S]*?<\/button>/g) || []; }
+function rows(html: string) { return html.match(/<button\b[^>]*data-player-id[^>]*>[\s\S]*?<\/button>/g) || []; }
 
 describe('multi-player favorite roster', () => {
   it('shows all five favorite players simultaneously with a small actual portrait per row', () => {
@@ -40,7 +40,7 @@ describe('multi-player favorite roster', () => {
 
   it('marks only the selected row and keeps its full name accessible even when visually truncated', () => {
     const html = render([line()], '1966');
-    expect(html.match(/aria-pressed="true"/g)).toHaveLength(1);
+    expect(rows(html).filter(row => row.includes('aria-pressed="true"'))).toHaveLength(1);
     expect(rows(html).find(row => row.includes('aria-pressed="true"'))).toContain('aria-label="LeBron James,');
     expect(rows(html).every(row => row.includes('type="button"'))).toBe(true);
   });

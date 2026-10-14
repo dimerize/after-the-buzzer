@@ -322,7 +322,7 @@ export default function App() {
 
       {page === 'games' && <Schedule preferences={preferences} demo={demo} onConnectLive={() => void loadLive()} onOpenGame={(game, date) => setSelectedInjuryGame({ game, date })} refreshKey={scheduleRefresh}/>}
 
-      {(page === 'tonight' || page === 'players') && <PlayerRoster players={preferences.players} lines={night.players} games={night.games} selectedId={expandedPlayer} onSelect={setExpandedPlayer} demo={demo}/>}
+      {(page === 'tonight' || page === 'players') && <PlayerRoster players={preferences.players} lines={night.players} games={night.games} selectedId={expandedPlayer} onSelect={setExpandedPlayer} demo={demo} date={night.date} timezone={preferences.timezone} scheduleVerified={night.scheduleComplete ?? !night.partial}/>}
       {page === 'tonight' && <div className="recap-layout"><div className="primary-rail">
         <Panel title="Game Report" className="report-panel">
           <div className="report-summary"><p><TeamText text={night.summary} /></p></div>

@@ -32,6 +32,7 @@ export interface Night {
   games: Game[]; players: PlayerLine[]; highlights: Highlight[]; leaders: Leader[];
   headline: string; summary: string; source: 'espn' | 'demo';
   partial: boolean; warnings: string[];
+  scheduleComplete?: boolean;
 }
 export interface Tracker {
   playerId: string; name: string; games: number; points: number; rebounds: number;
