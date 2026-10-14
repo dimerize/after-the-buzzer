@@ -1,4 +1,5 @@
 import type { Preferences, Tier } from '../src/shared/types';
+import { normalizePreferences } from '../src/shared/normalize-preferences';
 
 export function validDate(value: string): boolean {
   return /^20\d{2}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value;
@@ -28,7 +29,7 @@ export function validatePreferences(value: unknown): Preferences {
     if (x.injuryAlerts !== undefined && typeof x.injuryAlerts !== 'boolean') throw new Error('Invalid injury alert setting.');
     return { id: x.id, name: x.name.trim(), team: x.team, tier: x.tier as Tier, alerts: x.alerts, injuryAlerts: x.injuryAlerts === true };
   });
-  return { players, bedtime: time('bedtime'), timezone: v.timezone, length: v.length as Preferences['length'], hideScores: v.hideScores, liveAlerts: v.liveAlerts, injuryAlerts: v.injuryAlerts === true, quietStart: time('quietStart'), quietEnd: time('quietEnd') };
+  return normalizePreferences({ players, bedtime: time('bedtime'), timezone: v.timezone, length: v.length as Preferences['length'], hideScores: v.hideScores, liveAlerts: v.liveAlerts, injuryAlerts: v.injuryAlerts === true, quietStart: time('quietStart'), quietEnd: time('quietEnd') });
 }
 
 export function validSubscriptionKeys(p256dh:string, auth:string):boolean {

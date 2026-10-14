@@ -1,12 +1,13 @@
 import { DEFAULT_PREFERENCES } from '../src/shared/defaults';
 import type { Night, Preferences, Tracker } from '../src/shared/types';
+import { normalizePreferences } from '../src/shared/normalize-preferences';
 
 export async function getPreferences(db: D1Database): Promise<Preferences> {
   const row = await db.prepare('SELECT value FROM preferences WHERE id = ?').bind('owner').first<{value: string}>();
-  return row ? JSON.parse(row.value) : structuredClone(DEFAULT_PREFERENCES);
+  return normalizePreferences(row ? JSON.parse(row.value) : structuredClone(DEFAULT_PREFERENCES));
 }
 export async function savePreferences(db: D1Database, value: Preferences): Promise<void> {
-  await db.prepare('INSERT INTO preferences (id, value) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET value = excluded.value').bind('owner', JSON.stringify(value)).run();
+  await db.prepare('INSERT INTO preferences (id, value) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET value = excluded.value').bind('owner', JSON.stringify(normalizePreferences(value))).run();
 }
 export async function getNight(db: D1Database, date: string): Promise<Night | null> {
   const row = await db.prepare('SELECT payload FROM editions WHERE date = ?').bind(date).first<{payload: string}>();

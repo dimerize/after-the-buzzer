@@ -4,6 +4,7 @@ import type { Preferences } from '../src/shared/types';
 import { buildRecap } from '../worker/recap';
 import { getPreferences } from '../worker/store';
 import { game, line } from './notification-fixtures';
+import { validatePreferences } from '../worker/validation';
 
 const performances = Array.from({ length: 12 }, (_, index) => line({
   id: String(900 + index), name: `League Player ${index + 1}`, points: 30 + index,
@@ -23,8 +24,20 @@ describe('new-owner Full Detail preference', () => {
     expect(new Set(night.highlights.map(story => story.playerId))).toEqual(new Set(performances.map(player => player.id)));
   });
 
-  it.each([['quick', 4], ['normal', 8]] as const)('preserves an explicitly saved %s preference and its story limit', async (length, count) => {
+  it.each(['quick', 'normal'] as const)('upgrades a saved %s preference to Full Detail without losing other settings', async (length) => {
     const preferences = await getPreferences(preferenceDb({ ...structuredClone(DEFAULT_PREFERENCES), length }));
-    expect(recap(preferences).highlights).toHaveLength(count);
+    expect(preferences.length).toBe('nerd');
+    expect(recap(preferences).highlights).toHaveLength(12);
+    expect({...preferences,length}).toEqual({...DEFAULT_PREFERENCES,length});
+  });
+  it('accepts an old client save while converting League to Following without changing alert choices', () => {
+    const original = {...structuredClone(DEFAULT_PREFERENCES),length:'quick',players:[{...DEFAULT_PREFERENCES.players[0],tier:'league',injuryAlerts:true}]};
+    const result = validatePreferences(original);
+    expect(result.length).toBe('nerd');
+    expect(result.players[0]).toEqual({...original.players[0],tier:'interest'});
+    expect(result.bedtime).toBe(original.bedtime); expect(result.quietStart).toBe(original.quietStart);
+  });
+  it('does not truncate recap candidates even when a legacy caller supplies Quick', () => {
+    expect(recap({...DEFAULT_PREFERENCES,length:'quick'}).highlights).toHaveLength(12);
   });
 });

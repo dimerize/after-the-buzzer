@@ -68,12 +68,12 @@ describe('evidence-based recap', () => {
     const night = buildRecap([game], [player({ id: '5037871', name: 'Dylan Harper' }), player({ id: '2', name: 'Verified Rookie', rookie: true, points: 24 })], DEFAULT_PREFERENCES, meta);
     expect(night.highlights.filter(highlight => highlight.category === 'rookie').map(highlight => highlight.playerId)).toEqual(['2']);
   });
-  it('honors recap length and the favorite tier while retaining complete stat lines', () => {
+  it('uses full detail for legacy lengths and retains favorites and complete stat lines', () => {
     const players = Array.from({ length: 12 }, (_, i) => player({ id: String(i + 1), name: `Player ${i + 1}`, points: 30 + i }));
     players.push(player({ id: '5104157', name: 'Victor Wembanyama', points: 10 }));
     const quick = buildRecap([game], players, { ...DEFAULT_PREFERENCES, length: 'quick' }, meta);
     const nerd = buildRecap([game], players, { ...DEFAULT_PREFERENCES, length: 'nerd' }, meta);
-    expect(quick.highlights.length).toBeLessThan(nerd.highlights.length);
+    expect(quick.highlights).toEqual(nerd.highlights);
     expect(quick.players).toHaveLength(13);
     expect(nerd.highlights.some(highlight => highlight.playerId === '5104157' && highlight.category === 'favorite')).toBe(true);
   });

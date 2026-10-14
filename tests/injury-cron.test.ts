@@ -53,11 +53,17 @@ describe('injury poll cron integration', () => {
   it.each([
     ['global disabled', preferences({ injuryAlerts: false, players: opted().players })],
     ['no player opted', preferences({ injuryAlerts: true, players: [{ ...opted().players[0], injuryAlerts: false }] })],
-    ['league-only opt-in', preferences({ injuryAlerts: true, players: [{ ...opted().players[0], tier: 'league' }] })],
   ])('skips the injury poll when %s', async (_label, prefs) => {
     const { env } = readyEnv(prefs);
     await runScheduled(env, now);
     expect(injuryPoll).not.toHaveBeenCalled();
+  });
+
+  it('preserves an explicit injury opt-in when a legacy League player moves to Following', async () => {
+    const { env } = readyEnv(preferences({injuryAlerts:true,players:[{...opted().players[0],tier:'league'}]}));
+    await runScheduled(env, now);
+    expect(injuryPoll).toHaveBeenCalledOnce();
+    expect(injuryPoll).toHaveBeenCalledWith(env, expect.objectContaining({players:[expect.objectContaining({tier:'interest',injuryAlerts:true})]}), now, expect.any(Function));
   });
 
   it('continues the normal recap path after an injury poll failure', async () => {

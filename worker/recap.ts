@@ -51,7 +51,7 @@ export function buildRecap(games: Game[], players: PlayerLine[], preferences: Pr
     if (tier === 'favorite') add('favorite', 'favorite', `${player.name}: ${player.points} points`, `${line}. ${player.fgMade}-${player.fgAttempted} FG · ${player.threes} 3PM · ${Math.round(player.minutes)} MIN.`, 0);
   }
   const stories = [...strongestStories.values()].sort((a, b) => b.score - a.score || a.id.localeCompare(b.id));
-  const limit = { quick: 4, normal: 8, nerd: 16 }[preferences.length];
+  const limit = 16;
   const highlights = stories.slice(0, limit);
   // A quiet favorite still earns a mention, even on a busy league night.
   for (const story of stories.filter(story => preferencesById.get(story.playerId ?? '')?.tier === 'favorite')) {

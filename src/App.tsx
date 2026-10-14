@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Archive, ArrowDownToLine, ArrowUpRight, Bell, BellOff, CalendarDays, Check, ChevronDown, ChevronRight, Clock3, Eye, EyeOff, Flame, HelpCircle, LoaderCircle, LogOut, Moon, Plus, Radio, RefreshCw, Search, Settings2, ShieldCheck, Sparkles, Star, Trophy, Users, X, Zap } from 'lucide-react';
 import { DEFAULT_PREFERENCES } from './shared/defaults';
+import { normalizePreferences } from './shared/normalize-preferences';
 import { demoDashboard, SAMPLE_PLAYERS } from './demo';
 import type { Dashboard, Game, PlayerLine, Preferences, Tier, WatchPlayer } from './shared/types';
 import { createPreferenceSaveQueue, type PreferenceSaveQueue, type PreferenceUpdate } from './preference-save-queue';
@@ -20,8 +21,7 @@ const navigation: { id: Page; title: string; icon: typeof Moon }[] = [
 ];
 const tiers: { id: Tier; title: string; description: string }[] = [
   { id: 'favorite', title: 'Favorites', description: 'Always shown in the recap.' },
-  { id: 'interest', title: 'Following', description: 'Higher priority in performance rankings.' },
-  { id: 'league', title: 'League', description: 'Standard ranking priority.' }
+  { id: 'interest', title: 'Following', description: 'Higher priority in performance rankings.' }
 ];
 
 class ApiError extends Error { constructor(message: string, public status: number) { super(message); } }
@@ -34,7 +34,7 @@ async function api<T>(path: string, options?: RequestInit): Promise<T> {
 function readSamplePreferences(): Preferences {
   try {
     const value = JSON.parse(localStorage.getItem('buzzer:sample-preferences') || 'null') as Preferences | null;
-    if (value && Array.isArray(value.players) && value.bedtime && value.timezone) return { ...structuredClone(DEFAULT_PREFERENCES), ...value };
+    if (value && Array.isArray(value.players) && value.bedtime && value.timezone) return normalizePreferences({ ...structuredClone(DEFAULT_PREFERENCES), ...value });
   } catch { /* Use defaults when device storage is unavailable. */ }
   return structuredClone(DEFAULT_PREFERENCES);
 }
@@ -306,7 +306,7 @@ export default function App() {
   const favorites = preferences.players.filter((player) => player.tier === 'favorite');
   const finished = night.games.filter((game) => game.status === 'final').length;
   const stillPlaying = night.games.filter((game) => game.status === 'live').length;
-  const shownHighlights = night.highlights.slice(0, preferences.length === 'quick' ? 2 : preferences.length === 'nerd' ? 8 : 3);
+  const shownHighlights = night.highlights.slice(0, 8);
   const dateParts = displayDate(night.date, true);
   const updateTime = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', timeZone: preferences.timezone }).format(new Date(night.updatedAt));
   const pageTitle = page === 'tonight' ? 'Nightly Recap' : page === 'games' ? 'Game Schedule' : page === 'players' ? 'Watchlist' : page === 'archive' ? 'Archive' : 'Settings';
@@ -349,7 +349,7 @@ export default function App() {
         <div className="tracker-section"><Panel title="Tracked Player Averages"><p className="tier-description">Averages cover saved games only; date ranges appear below.</p>{dashboard.trackers.length ? dashboard.trackers.map((tracker) => <article className="tracker-card" key={tracker.playerId}><div className="tracker-title"><strong>{tracker.name}</strong><span>{tracker.games} GP</span></div><div className="tracker-stats"><Stat label="PTS" value={tracker.games ? tracker.points : '—'}/><Stat label="REB" value={tracker.games ? tracker.rebounds : '—'}/><Stat label="AST" value={tracker.games ? tracker.assists : '—'}/><Stat label="BLK" value={tracker.games ? tracker.blocks : '—'}/></div><div className="tracker-recent">{tracker.lastFive.length > 0 && <><span>Recent points</span><div>{tracker.lastFive.map((value,index) => <b key={index}>{value}</b>)}</div></>}<span>High <strong>{tracker.games ? tracker.pointsHigh : '—'}</strong></span></div><p>{tracker.scope}</p></article>) : <div className="empty-state"><p>No saved player statistics.</p></div>}</Panel><div className="info-bar"><HelpCircle size={17}/><span>Not full-season averages. {demo && 'Sample statistics are excluded from real archives.'}</span></div></div></div>}
 
       {page === 'settings' && <div className="settings-layout"><div><Panel title="Edition Schedule" className="settings-panel"><p className="setting-description">Publishes at bedtime. Late games update the same date.</p><div className="form-grid"><label>Bedtime<input type="time" value={preferences.bedtime} onChange={(event) => event.target.value && void updatePreferences((current) => ({...current,bedtime:event.target.value}))}/></label><label>Time zone<select value={preferences.timezone} onChange={(event) => void updatePreferences((current) => ({...current,timezone:event.target.value}))}>{Array.from(new Set([preferences.timezone,'America/New_York','America/Chicago','America/Denver','America/Los_Angeles','America/Phoenix','America/Toronto','Europe/London','Europe/Paris','Asia/Tokyo','Australia/Sydney','UTC'])).map((zone) => <option key={zone} value={zone}>{zone.replaceAll('_',' ')}</option>)}</select></label></div></Panel>
-        <Panel title="Recap Options" className="settings-panel"><div className="length-options">{([{id:'quick',title:'Quick',description:'Up to 2 stories and favorite players.'},{id:'normal',title:'Standard',description:'Up to 3 stories and favorite players.'},{id:'nerd',title:'Full Detail',description:'Up to 8 stories and additional player statistics.'}] as const).map((option) => <button key={option.id} className={'length-option '+(preferences.length === option.id ? 'selected' : '')} aria-pressed={preferences.length === option.id} onClick={() => void updatePreferences((current) => ({...current,length:option.id}))}><span className="radio-circle">{preferences.length === option.id && <Check size={12}/>}</span><span><strong>{option.title}</strong><small>{option.description}</small></span></button>)}</div><Toggle label="Hide game scores" detail="Player stats and recap stories remain visible." value={preferences.hideScores} onChange={(value) => void updatePreferences((current) => ({...current,hideScores:value}))}/></Panel>
+        <Panel title="Recap Options" className="settings-panel"><Toggle label="Hide game scores" detail="Player stats and recap stories remain visible." value={preferences.hideScores} onChange={(value) => void updatePreferences((current) => ({...current,hideScores:value}))}/></Panel>
         <Panel title="Notifications" className="settings-panel"><Toggle label="Injury-status alerts" detail="Pregame changes for players selected in Watchlist. Quiet hours apply." value={!!preferences.injuryAlerts} onChange={(value) => value ? void enablePush(false, true) : void updatePreferences((current) => ({...current,injuryAlerts:false}))}/><Toggle label="Live player alerts" detail="For players with alerts enabled." value={preferences.liveAlerts} onChange={(value) => value ? void enablePush(true) : void updatePreferences((current) => ({...current,liveAlerts:false}))}/><div className="form-grid quiet-hours"><label>Quiet hours start<input type="time" value={preferences.quietStart} onChange={(event) => event.target.value && void updatePreferences((current) => ({...current,quietStart:event.target.value}))}/></label><label>Quiet hours end<input type="time" value={preferences.quietEnd} onChange={(event) => event.target.value && void updatePreferences((current) => ({...current,quietEnd:event.target.value}))}/></label></div><div className="notification-actions"><button className="primary-button" onClick={() => void enablePush()} disabled={busy}><span className="control-glyph green"><Bell size={13}/></span>{busy && !testingPush ? 'Connecting…' : 'Enable bedtime notifications'}</button><button className="small-button" onClick={() => void testPush()} disabled={busy}><Bell size={14}/>{testingPush ? 'Sending…' : 'Test notification'}</button></div>
           {pushStatus && <p className="push-message" role="status">{pushStatus}</p>}
           <p className="settings-note">iPhone: open this HTTPS site in Safari → Share → Add to Home Screen. Open the installed app, enable notifications, and allow permission. Requires iOS 16.4 or later.</p>
