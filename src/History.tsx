@@ -1,8 +1,8 @@
 import { Fragment, useEffect, useState, type ReactNode } from 'react';
-import { ArrowUpRight, ChevronRight, LoaderCircle, RefreshCw, Trophy } from 'lucide-react';
+import { ArrowUpRight, ChevronRight, LoaderCircle, RefreshCw } from 'lucide-react';
 import type { WatchPlayer } from './shared/types';
 import type { CareerHistorySection, HistoricalAggregate, HistoricalPerformance, HistoricalSeason, HistoricalStats, HistorySeasonType, PlayerCareerHistory, PlayerSeasonLog } from './shared/history-types';
-import type { SeasonHonorCategory, SeasonHonors } from './shared/honors-types';
+import Records from './Records';
 import { formatHistoryUpdatedAt, historyForPlayer, historyRequestKey, visibleHistoryRequest, type HistoryRequestState } from './history-request';
 import TeamLabel from './TeamLabel';
 import './history.css';
@@ -105,20 +105,7 @@ function CareerViewer({ players }: { players: WatchPlayer[] }) {
       </aside></div></div>;
 }
 
-function HonorsViewer() {
-  const today = new Date();
-  const completedYear = today.getUTCMonth() >= 6 ? today.getUTCFullYear() : today.getUTCFullYear() - 1;
-  const [season, setSeason] = useState(completedYear);
-  const [draftSeason, setDraftSeason] = useState(String(completedYear));
-  const [categoryId, setCategoryId] = useState('');
-  const honors = useHistoryResource<SeasonHonors>(`/api/history/honors?season=${season}`);
-  const categories = honors.data?.categories || [];
-  const selected = categories.find((category) => category.id === categoryId) || categories[0];
-  function selectCategory(category: SeasonHonorCategory) { setCategoryId(category.id); }
-  return <div className="history-view honors-view"><section className="panel honors-toolbar"><div><Trophy size={18} /><strong>Season Leaders</strong><span>Regular season</span></div><form onSubmit={(event) => { event.preventDefault(); const year = Number(draftSeason); if (Number.isInteger(year) && year >= 1947 && year <= completedYear) setSeason(year); }}><label htmlFor="honors-season">Season ending</label><input id="honors-season" type="number" min={1947} max={completedYear} value={draftSeason} onChange={(event) => setDraftSeason(event.target.value)} required /><button className="small-button" type="submit">Load</button></form></section><Status loading={honors.loading} error={honors.error} retry={honors.retry} empty={!honors.loading && !honors.error && !categories.length ? 'No season leaders available.' : ''} />{categories.length > 0 && <><div className="honors-grid">{categories.map((category) => { const leader = category.leaders[0]; const tied = leader ? category.leaders.filter((item) => item.rank === leader.rank).length : 0; return <button className={'panel honor-card ' + (selected?.id === category.id ? 'selected' : '')} key={category.id} onClick={() => selectCategory(category)} aria-pressed={selected?.id === category.id}><span className="chrome-bar honor-category">{category.label}</span>{leader ? <><Portrait key={leader.playerId} id={leader.playerId} name={leader.name} team={leader.team} className="honor-portrait" /><span className="honor-name">{leader.name}</span><span className="honor-value"><strong>{leader.displayValue}</strong><small>{category.unit}</small></span>{tied > 1 && <span className="honor-tie">{tied} tied at rank {leader.rank}</span>}</> : <span className="honor-unavailable">No data</span>}</button>; })}</div><div className="honors-rankings-layout"><Panel title={(selected?.label || 'Season') + ' Rankings'} action={<span className="panel-meta">{honors.data?.label || seasonLabel(season)}</span>}><div className="history-table-scroll" tabIndex={0} aria-label="Season leader rankings"><table className="history-table honors-table"><thead><tr><th>Rank</th><th>Player</th><th>Team</th><th>{selected?.unit || 'Value'}</th></tr></thead><tbody>{selected?.leaders.map((leader) => <tr key={leader.playerId}><td>{leader.rank}</td><th><span className="ranking-player"><Portrait key={leader.playerId} id={leader.playerId} name={leader.name} className="ranking-portrait" />{leader.name}</span></th><td><TeamLabel team={leader.team || '—'} /></td><td>{leader.displayValue}</td></tr>)}</tbody></table></div><HistorySource url={honors.data?.sourceUrl} updatedAt={honors.data?.updatedAt}>ESPN season leaders</HistorySource></Panel><aside className="honors-scope panel"><div className="panel-title"><h2>Leaderboard Scope</h2></div><div className="history-context-season">{honors.data?.label || seasonLabel(season)}</div><div className="history-context-row"><span>Competition</span><strong>Regular season</strong></div><div className="history-context-row"><span>Categories</span><strong>{categories.length}</strong></div><p className="history-note">Per-game leaders. ESPN qualification rules apply. These rankings are not official NBA awards.</p>{honors.data && <Notices warnings={honors.data.warnings} />}</aside></div></>}</div>;
-}
-
 export default function History({ view, players, demo, onConnectLive }: HistoryProps) {
-  if (demo) return <Panel title={view === 'careers' ? 'Career Statistics' : 'Season Leaders'} className="history-view"><div className="history-status"><span>Historical statistics require the live reader.</span>{onConnectLive && <button className="small-button" onClick={onConnectLive}>Connect live reader <ArrowUpRight size={13} /></button>}</div></Panel>;
-  return view === 'careers' ? <CareerViewer players={players} /> : <HonorsViewer />;
+  if (demo && view === 'careers') return <Panel title="Career Statistics" className="history-view"><div className="history-status"><span>Historical statistics require the live reader.</span>{onConnectLive && <button className="small-button" onClick={onConnectLive}>Connect live reader <ArrowUpRight size={13} /></button>}</div></Panel>;
+  return view === 'careers' ? <CareerViewer players={players} /> : <Records />;
 }

@@ -1,0 +1,100 @@
+/* Hall of Fame — 2K7 Association card + roster table treatment. */
+.records-view{margin-top:5px}
+.records-tabs>button{font-size:16px}
+.records-toolbar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px 14px;padding:8px 10px;margin-bottom:14px}
+.records-toolbar-title{display:flex;align-items:center;gap:8px;min-width:0}
+.records-toolbar-title>svg{color:#e3c76b;filter:drop-shadow(0 0 4px #e3c76b66)}
+.records-toolbar-title strong{font-size:21px;font-style:italic;font-weight:600;line-height:1;text-shadow:1px 1px #000;white-space:nowrap}
+.records-toolbar-title span{font-size:13px;color:#8fb0d4;white-space:nowrap}
+.records-toolbar-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-left:auto}
+.records-season-picker{display:flex;align-items:center;gap:4px}
+.records-season-picker>button{display:grid;place-items:center;width:38px;min-height:40px;background:var(--chrome);border:1px solid #7594bb;border-radius:2px;box-shadow:inset 0 0 0 1px #162649;color:#dce9f6}
+.records-season-picker select{appearance:none;-webkit-appearance:none;min-width:132px;min-height:40px;padding:4px 30px 4px 12px;border:1px solid #9cb6d6;border-radius:2px;color:#f1f6fc;font:600 19px/1 'Barlow Condensed','Arial Narrow',sans-serif;letter-spacing:.4px;text-align:center;text-shadow:1px 1px #000;cursor:pointer;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23e6f0fb' stroke-width='2'/%3E%3C/svg%3E") right 10px center/12px 8px no-repeat,linear-gradient(#3352c4,#1c2f8f 52%,#22379f);box-shadow:inset 0 0 0 1px #5d76cf,0 0 6px #3a56c766}
+.records-season-picker select:focus-visible{outline:2px solid #e5faff;outline-offset:2px}
+.records-season-picker option{background:#0d1d3d;color:#e6eef8;font-weight:500}
+.records-measure button{min-height:32px;font-size:14px;padding:3px 11px}
+
+.records-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:16px}
+.record-card{display:flex;flex-direction:column;align-items:stretch;min-width:0;padding:5px;border-width:2px;text-align:center;cursor:pointer}
+.record-card.selected{border-color:#c8daf2;box-shadow:0 0 0 2px #151e40,inset 0 0 0 2px #4b68c5,0 0 14px #4666db80}
+.record-card:hover{filter:brightness(1.1)}
+.record-card-title{display:block;height:28px;line-height:20px;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:clip;padding:3px 4px}
+.record-portrait{position:relative;display:flex;align-items:flex-end;justify-content:center;overflow:hidden;isolation:isolate;background:radial-gradient(ellipse at 50% 58%,#3d67a6,#11284f 58%,#06122a 86%)}
+.record-portrait>img{position:relative;z-index:1;display:block;width:100%;height:100%;object-fit:contain;object-position:center bottom}
+.record-portrait:after{content:'';position:absolute;inset:0;z-index:2;pointer-events:none;background:linear-gradient(115deg,#ffffff12,transparent 42%,#050c2240)}
+.record-portrait>small{position:absolute;z-index:3;left:0;bottom:0;padding:1px 5px;background:#04132ce0;border-top:1px solid #617e9a;border-right:1px solid #617e9a;color:#c8dbf1;font-size:12px}
+.record-portrait-photo>img{object-fit:cover;object-position:center 22%;-webkit-mask-image:radial-gradient(ellipse 58% 64% at 50% 42%,#000 52%,transparent 100%);mask-image:radial-gradient(ellipse 58% 64% at 50% 42%,#000 52%,transparent 100%);filter:saturate(.85) contrast(1.05)}
+.record-silhouette{width:56%;max-width:84px;margin-bottom:-2px;fill:#9ab9df;opacity:.32}
+.record-portrait-card{height:150px;border-left:1px solid #253c65;border-right:1px solid #253c65}
+.record-not-recorded{align-items:center;color:#7d9cc2;font-size:14px;text-transform:uppercase;letter-spacing:.4px}
+.record-card-name{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:46px;padding:4px 4px;font-size:19px;font-weight:600;line-height:1.1;color:#e8eff9;background:linear-gradient(#244478,#102347);border-top:1px solid #8aa7ca;text-shadow:1px 1px #000;align-content:center}
+.record-card-value{display:flex;align-items:baseline;justify-content:center;gap:5px;min-height:40px;padding:5px;background:linear-gradient(#d7e0e9,#a1b0c4);border:1px solid #4b638b;box-shadow:inset 0 1px #f1f7fc;color:#0d1628}
+.record-card-value>strong{font:italic 900 26px/1.1 Arial,sans-serif}
+.record-card-value>small{font-size:12px;font-weight:700;text-transform:uppercase}
+.record-card-context{min-height:22px;padding:3px 2px;font-size:13px;line-height:1.2;color:#b9cfe8;background:#0c1d3d;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.records-rankings .panel-title h2{font-size:17px}
+.records-table{width:100%;table-layout:fixed;border-collapse:collapse;font-variant-numeric:tabular-nums}
+.records-rank-col{width:42px}.records-gp-col{width:52px}.records-value-col{width:78px}
+.records-table thead{background:linear-gradient(#7297bc,#2b476f 50%,#1a355f);color:#e0ebf8;text-shadow:1px 1px #000;text-transform:uppercase}
+.records-table thead th{padding:5px 6px;font-size:13px;font-weight:600;border-bottom:2px solid #4868b2;text-align:center}
+.records-table thead th:nth-child(2){text-align:left}
+.records-table td,.records-table tbody th{padding:4px 6px;border-bottom:1px solid #35518a;text-align:center;color:#b9d0ea;font-size:17px;font-weight:500}
+.records-table tbody tr:nth-child(even){background:#10244766}
+.records-table tbody tr:first-child{background:linear-gradient(#2d47b8cc,#22379bcc)}
+.records-rank{font-style:italic;font-weight:650!important;color:#dce7f6!important}
+.records-table tbody th{text-align:left;min-width:0}
+.records-player{display:flex;align-items:center;gap:8px;min-width:0}
+.records-player>span:last-child{display:flex;flex-direction:column;min-width:0}
+.records-player strong{display:block;font-size:17px;font-weight:600;line-height:1.1;color:#e6eef9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:1px 1px #000}
+.records-player small{display:block;margin-top:2px;font-size:12px;line-height:1.15;color:#9ab8da;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.records-player small .team-label{--team-logo-size:13px;gap:2px}
+.record-portrait-row{flex:none;width:46px;height:34px;border:1px solid #4c6d95;border-radius:2px}
+.record-portrait-row .record-silhouette{width:62%}
+.records-value{font:italic 800 19px/1 Arial,sans-serif!important;color:#f2f6fb!important}
+.record-traded{font-size:.92em;text-transform:uppercase;letter-spacing:.2px;color:#c8d9ee}
+.records-empty{padding:22px 12px;text-align:center;font-size:15px;line-height:1.4;color:#9db9d8}
+.records-footnote{display:flex;flex-direction:column;gap:3px;padding:7px 9px;font-size:12px;line-height:1.3;color:#86a7cb;background:#12244977;border-top:1px solid #2d467c}
+.records-footnote a{display:inline-flex;align-items:center;gap:2px;color:#b5d2f2}
+
+@media(max-width:800px){
+  .records-view{margin-top:3px}
+  .records-tabs>button{font-size:13px;padding:3px 4px;min-height:40px}
+  .records-toolbar{padding:6px;gap:7px;margin-bottom:9px}
+  .records-toolbar-title strong{font-size:17px}
+  .records-toolbar-title span{font-size:11px}
+  .records-toolbar-controls{width:100%;justify-content:space-between;gap:6px;margin-left:0}
+  .records-season-picker{flex:1;max-width:240px}
+  .records-season-picker select{flex:1;min-width:0;width:100%;min-height:42px;font-size:18px}
+  .records-season-picker>label{flex:1;min-width:0;display:flex}
+  .records-season-picker>button{width:36px;min-height:42px}
+  .records-measure button{min-height:36px;font-size:12px;padding:2px 8px}
+  .records-grid{gap:6px;margin-bottom:10px}
+  .record-card{padding:3px;border-width:1px}
+  .record-card-title{height:22px;line-height:16px;font-size:12px;letter-spacing:.2px;padding:3px 1px}
+  .record-portrait-card{height:92px}
+  .record-portrait>small{font-size:10px;padding:1px 3px}
+  .record-portrait>small .team-label{--team-logo-size:10px}
+  .record-card-name{min-height:34px;padding:3px 2px;font-size:14px;line-height:1.05;font-weight:500}
+  .record-card-value{min-height:30px;padding:3px 2px;gap:3px}
+  .record-card-value>strong{font:700 23px/1 'Barlow Condensed','Arial Narrow',sans-serif}
+  .record-card-value>small{font-size:10px}
+  .record-card-context{min-height:18px;font-size:11px;padding:2px 1px}
+  .records-rankings .panel-title h2{font-size:14px}
+  .records-rank-col{width:26px}.records-gp-col{width:32px}.records-value-col{width:52px}
+  .records-table thead th{padding:4px 3px;font-size:11px}
+  .records-table td,.records-table tbody th{padding:4px 3px;font-size:14px}
+  .records-player{gap:5px}
+  .records-player strong{font-size:14px}
+  .records-player small{font-size:11px}
+  .records-player small .team-label{--team-logo-size:11px}
+  .record-portrait-row{width:36px;height:27px}
+  .records-value{font:700 18px/1 'Barlow Condensed','Arial Narrow',sans-serif!important}
+  .records-footnote{font-size:11px;padding:6px}
+}
+@media(max-width:350px){
+  .record-card-title{font-size:11px;letter-spacing:0}
+  .record-card-name{font-size:13px}
+  .record-portrait-card{height:78px}
+}
