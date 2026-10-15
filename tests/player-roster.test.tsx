@@ -27,8 +27,8 @@ describe('multi-player favorite roster', () => {
     const html = render([line({ points: 0, rebounds: 0, assists: 0, blocks: 0 })]);
     const rendered = rows(html);
     expect(rendered).toHaveLength(5);
-    expect(rendered[0].match(/class="player-roster-stat"/g)).toHaveLength(4);
-    expect(rendered[0].match(/>0<\/span>/g)).toHaveLength(4);
+    expect((rendered[0] || '').match(/class="player-roster-stat"/g)).toHaveLength(4);
+    expect((rendered[0] || '').match(/>0<\/span>/g)).toHaveLength(4);
   });
 
   it('replaces empty stat cells with one status plate per player without a line', () => {

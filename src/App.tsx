@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
-import { Archive, ArrowDownToLine, ArrowUpRight, Bell, BellOff, CalendarDays, Check, ChevronDown, ChevronRight, Clock3, Eye, EyeOff, Flame, HelpCircle, LoaderCircle, LogOut, Moon, Plus, Radio, RefreshCw, Search, Settings2, ShieldCheck, Sparkles, Star, Trophy, Users, X, Zap } from 'lucide-react';
+import { Archive, ArrowDownToLine, ArrowUpRight, Bell, BellOff, CalendarDays, Check, ChevronDown, ChevronRight, Clock3, Eye, EyeOff, Flame, HelpCircle, LoaderCircle, LogOut, Moon, Plus, Radio, RefreshCw, Search, Settings2, ShieldCheck, Sparkles, Trophy, Users, X, Zap } from 'lucide-react';
 import { DEFAULT_PREFERENCES } from './shared/defaults';
 import { normalizePreferences } from './shared/normalize-preferences';
 import { demoDashboard, SAMPLE_PLAYERS } from './demo';

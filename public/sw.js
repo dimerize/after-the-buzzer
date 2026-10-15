@@ -1,4 +1,4 @@
-const CACHE = 'after-the-buzzer-shell-2k7-v6';
+const CACHE = 'after-the-buzzer-shell-2k7-v7';
 const NOTIFICATION_ICON = '/icon-192.png?v=2';
 const SHELL = ['/', '/icon.svg?v=2', NOTIFICATION_ICON, '/icon-512.png?v=2', '/apple-touch-icon.png?v=2', '/wordmark.svg', '/city-night.svg', '/manifest.webmanifest'];
 const SHELL_PATHS = new Set(SHELL.map(path => path.split('?')[0]));
