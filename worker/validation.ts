@@ -1,5 +1,6 @@
 import type { Preferences, Tier } from '../src/shared/types';
 import { normalizePreferences } from '../src/shared/normalize-preferences';
+import { TV_MARKETS } from '../src/shared/watch-guide';
 
 export function validDate(value: string): boolean {
   return /^20\d{2}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value;
@@ -17,6 +18,7 @@ export function validatePreferences(value: unknown): Preferences {
   if (typeof v.length !== 'string' || !['quick', 'normal', 'nerd'].includes(v.length)) throw new Error('Invalid recap length.');
   if (typeof v.hideScores !== 'boolean' || typeof v.liveAlerts !== 'boolean') throw new Error('Invalid notification settings.');
   if (v.injuryAlerts !== undefined && typeof v.injuryAlerts !== 'boolean') throw new Error('Invalid injury alert settings.');
+  if (v.tvMarket !== undefined && (typeof v.tvMarket !== 'string' || !TV_MARKETS.some(market => market.id === v.tvMarket))) throw new Error('Invalid TV market.');
   if (!Array.isArray(v.players) || v.players.length > 60) throw new Error('Choose up to 60 players.');
   const ids = new Set<string>();
   const players = v.players.map((p: unknown) => {
@@ -29,7 +31,7 @@ export function validatePreferences(value: unknown): Preferences {
     if (x.injuryAlerts !== undefined && typeof x.injuryAlerts !== 'boolean') throw new Error('Invalid injury alert setting.');
     return { id: x.id, name: x.name.trim(), team: x.team, tier: x.tier as Tier, alerts: x.alerts, injuryAlerts: x.injuryAlerts === true };
   });
-  return normalizePreferences({ players, bedtime: time('bedtime'), timezone: v.timezone, length: v.length as Preferences['length'], hideScores: v.hideScores, liveAlerts: v.liveAlerts, injuryAlerts: v.injuryAlerts === true, quietStart: time('quietStart'), quietEnd: time('quietEnd') });
+  return normalizePreferences({ players, bedtime: time('bedtime'), timezone: v.timezone, length: v.length as Preferences['length'], hideScores: v.hideScores, liveAlerts: v.liveAlerts, injuryAlerts: v.injuryAlerts === true, quietStart: time('quietStart'), quietEnd: time('quietEnd'), ...(typeof v.tvMarket === 'string' ? { tvMarket: v.tvMarket } : {}) });
 }
 
 export function validSubscriptionKeys(p256dh:string, auth:string):boolean {

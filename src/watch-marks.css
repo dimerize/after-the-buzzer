@@ -1,0 +1,23 @@
+/* Favorites = gold star, Following = ice-blue diamond, Marquee = gold chrome ribbon. */
+:root{--fav-gold:#f3d470;--fav-glow:#e3c76b;--follow-ice:#93d7ff;--follow-glow:#4fb3ef}
+.tier-mark{display:inline-flex;align-items:center;gap:2px;flex:none;font-size:.9em;line-height:1;text-shadow:0 0 6px currentColor,1px 1px #000}
+.tier-mark-favorite{color:var(--fav-gold)}.tier-mark-interest{color:var(--follow-ice)}
+.tier-mark small{font-size:9px;font-weight:700;letter-spacing:.4px;padding:1px 3px;border:1px solid currentColor;border-radius:2px;text-shadow:none}
+.watched-chip{display:inline-flex;align-items:center;gap:3px;min-width:0;max-width:100%;padding:1px 6px 1px 1px;border:1px solid;border-radius:2px;font-size:12px;font-weight:600;line-height:1.2;white-space:nowrap;text-shadow:1px 1px #000}
+.watched-chip>span:last-child{overflow:hidden;text-overflow:ellipsis}
+.watched-chip-favorite{border-color:#a8893a;background:linear-gradient(#3d3212,#1e1806);color:var(--fav-gold)}
+.watched-chip-interest{border-color:#3d7fae;background:linear-gradient(#123552,#0a1d30);color:var(--follow-ice)}
+.watched-chip-photo{display:block;flex:none;width:22px;height:18px;overflow:hidden;border-radius:1px;background:radial-gradient(ellipse at 50% 70%,#3d67a6,#0b1c3a)}
+.watched-chip-photo img{display:block;width:100%;height:100%;object-fit:cover;object-position:center top}
+.marquee-badge{position:relative;display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border:1px solid #fff2b8;border-radius:2px;overflow:hidden;
+  background:linear-gradient(#fff3c4,#e8c65c 42%,#a57d1c 55%,#ecd07a);color:#2a1d02;font-size:11px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;text-shadow:0 1px #fff6;box-shadow:0 0 8px #e3c76b88}
+.marquee-badge:after{content:'';position:absolute;inset:0;background:linear-gradient(100deg,transparent 30%,#ffffffa0 48%,transparent 62%);transform:translateX(-120%);animation:marquee-sheen 3.6s ease-in-out infinite}
+@keyframes marquee-sheen{0%,55%{transform:translateX(-120%)}85%,100%{transform:translateX(120%)}}
+@media(prefers-reduced-motion:reduce){.marquee-badge:after{animation:none;display:none}}
+/* Row accents shared by the schedule and the scoreboard. */
+.watch-accent-favorite{box-shadow:inset 3px 0 0 var(--fav-glow)}
+.watch-accent-interest{box-shadow:inset 3px 0 0 var(--follow-glow)}
+.watch-accent-marquee{box-shadow:inset 3px 0 0 var(--fav-glow),inset -3px 0 0 var(--fav-glow);background:linear-gradient(90deg,#4a3a0e55,#0a163400 30%,#0a163400 70%,#4a3a0e55)!important}
+.watch-team-favorite{color:var(--fav-gold)!important;text-shadow:0 0 6px #e3c76b66,1px 1px #000}
+.watch-team-interest{color:var(--follow-ice)!important;text-shadow:0 0 6px #4fb3ef55,1px 1px #000}
+@media(max-width:800px){.watched-chip{font-size:11px;padding-right:4px}.watched-chip-photo{width:19px;height:16px}.marquee-badge{font-size:10px;padding:1px 6px;letter-spacing:.4px}}

@@ -3,15 +3,16 @@ import { X } from 'lucide-react';
 import type { Game, WatchPlayer } from './shared/types';
 import BoxScore from './BoxScore';
 import { InjuryReportContent } from './InjuryReport';
+import WatchPanel, { useListedGame, WatchStrip } from './WatchGuide';
 import './injury-report.css';
 import './boxscore.css';
 
 export interface GameReportProps {
-  game: Game; date: string; timezone: string; demo: boolean; hideScores: boolean; watchedIds: string[];
+  game: Game; date: string; timezone: string; demo: boolean; hideScores: boolean; watchedIds: string[]; tvMarket?: string;
   initialTab: 'injuries' | 'boxscore'; onWatch: (player: WatchPlayer) => void; onClose: () => void; onConnectLive: () => void;
 }
 
-export default function GameReport({ game, date, timezone, demo, hideScores, watchedIds, initialTab, onWatch, onClose, onConnectLive }: GameReportProps) {
+export default function GameReport({ game, date, timezone, demo, hideScores, watchedIds, tvMarket, initialTab, onWatch, onClose, onConnectLive }: GameReportProps) {
   const dialog = useRef<HTMLDialogElement>(null);
   const opener = useRef<HTMLElement | null>(null);
   const closeRef = useRef(onClose);
@@ -19,6 +20,7 @@ export default function GameReport({ game, date, timezone, demo, hideScores, wat
   const gameKey = `${date}:${game.id}`;
   const [tabState, setTabState] = useState({ key: gameKey, tab: initialTab });
   const tab = tabState.key === gameKey ? tabState.tab : initialTab;
+  const listed = useListedGame(game, date, demo);
 
   useEffect(() => { setTabState({ key: gameKey, tab: initialTab }); }, [gameKey, initialTab]);
 
@@ -36,8 +38,9 @@ export default function GameReport({ game, date, timezone, demo, hideScores, wat
   return <dialog ref={dialog} className="injury-dialog game-report-dialog" aria-labelledby="game-report-title" onCancel={event => { event.preventDefault(); closeRef.current(); }} onClick={event => { if (event.target === dialog.current) closeRef.current(); }}>
     <div className="injury-dialog-frame"><header className="injury-header"><h2 id="game-report-title">Game report <span>{game.away} at {game.home}</span></h2><div><button className="injury-close" type="button" aria-label="Close game report" onClick={onClose}><X size={20}/></button></div></header>
       <div className="game-report-tabs" role="tablist" aria-label="Game report views"><button id="game-report-injuries-tab" type="button" role="tab" aria-selected={tab === 'injuries'} aria-controls="game-report-panel" onClick={() => setTabState({ key: gameKey, tab: 'injuries' })}>Injuries</button><button id="game-report-boxscore-tab" type="button" role="tab" aria-selected={tab === 'boxscore'} aria-controls="game-report-panel" onClick={() => setTabState({ key: gameKey, tab: 'boxscore' })}>Box score</button></div>
+      {!demo && <WatchStrip game={listed} market={tvMarket}/>}
       <div id="game-report-panel" className="game-report-panel" role="tabpanel" aria-labelledby={tab === 'injuries' ? 'game-report-injuries-tab' : 'game-report-boxscore-tab'}>{tab === 'injuries'
-        ? <InjuryReportContent key={gameKey} game={game} date={date} timezone={timezone} demo={demo} onConnectLive={onConnectLive}/>
+        ? <><InjuryReportContent key={gameKey} game={game} date={date} timezone={timezone} demo={demo} onConnectLive={onConnectLive}/><WatchPanel key={`watch:${gameKey}`} game={listed} market={tvMarket} demo={demo}/></>
         : <BoxScore key={gameKey} game={game} date={date} timezone={timezone} demo={demo} hideScores={hideScores} watchedIds={watchedIds} active onWatch={onWatch} onConnectLive={onConnectLive}/>}</div>
     </div>
   </dialog>;

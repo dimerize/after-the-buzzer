@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { ScheduleTable } from '../src/Schedule';
 import { fetchSchedule, formatScheduleDate, formatScheduleTipoff, nextScheduleDate, shiftScheduleDate, visibleScheduleRequest } from '../src/schedule-view';
 import type { Game } from '../src/shared/types';
-import { resolveScheduleDate } from '../src/schedule-view';
+import { currentSlateDate, resolveScheduleDate } from '../src/schedule-view';
 
 const game: Game = { id: '1', away: 'SAS', home: 'LAL', awayScore: 123, homeScore: 99, status: 'final', statusText: 'Final', startsAt: '2026-10-11T02:30:00Z', sourceUrl: 'https://www.espn.com/nba/game/_/gameId/1' };
 
@@ -21,6 +21,26 @@ describe('schedule calendar', () => {
     expect(html).toContain('Favorite Spur'); expect(html).toContain('Followed Spur');
     expect(html).not.toContain('Other Team'); expect(html).toContain('Favorite: Favorite Spur');
     expect(html).toContain('Following: Followed Spur'); expect(html).toContain('/headshots/nba/players/full/1.png');
+  });
+  it('turns a game with watched players on both teams into a marquee matchup with a TV chip', () => {
+    const players = [{ id: '1', name: 'Favorite Spur', team: 'SAS', tier: 'favorite' as const, alerts: false }, { id: '2', name: 'Followed Laker', team: 'LAL', tier: 'interest' as const, alerts: false }];
+    const marquee = renderToStaticMarkup(<ScheduleTable games={[{ ...game, status: 'scheduled', broadcasts: [{ market: 'national', type: 'tv', name: 'Prime Video' }] }]} date="2026-10-10" timezone="America/New_York" hideScores={false} players={players} tvMarket="NY"/>);
+    expect(marquee).toContain('Marquee matchup');
+    expect(marquee).toContain('watch-accent-marquee');
+    expect(marquee).toContain('watch-chip-national');
+    expect(marquee).toContain('>Prime Video<');
+    const oneSide = renderToStaticMarkup(<ScheduleTable games={[game]} date="2026-10-10" timezone="America/New_York" hideScores={false} players={[players[1]]}/>);
+    expect(oneSide).not.toContain('Marquee matchup');
+    expect(oneSide).toContain('watch-accent-interest');
+    expect(oneSide).not.toContain('watch-chip');
+  });
+  it.each([
+    ['2026-10-15T04:30:00Z', '2026-10-14'],
+    ['2026-10-15T10:00:00Z', '2026-10-15'],
+    ['2026-11-01T10:30:00Z', '2026-10-31'],
+    ['2026-11-01T11:30:00Z', '2026-11-01'],
+  ])('keeps the recap slate on the previous night until 6 AM Eastern at %s', (now, expected) => {
+    expect(currentSlateDate(new Date(now))).toBe(expected);
   });
   it.each([
     ['2026-10-10T09:59:59Z', '2026-10-10'],

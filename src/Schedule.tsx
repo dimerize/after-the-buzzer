@@ -1,30 +1,49 @@
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { ArrowUpRight, ChevronLeft, ChevronRight, LoaderCircle, RefreshCw } from 'lucide-react';
 import type { Game, Preferences, WatchPlayer } from './shared/types';
-import { watchedPlayersForGame } from './shared/team-matching';
+import { gameWatch, sideLevel } from './shared/team-matching';
+import { MarqueeBadge, TierMark, WatchedChip } from './WatchMarks';
+import { WatchChip } from './WatchGuide';
 import TeamLabel from './TeamLabel';
 import { fetchSchedule, formatScheduleDate, formatScheduleTipoff, resolveScheduleDate, shiftScheduleDate, visibleScheduleRequest, type ScheduleRequestState } from './schedule-view';
 import './schedule.css';
 
-export function ScheduleTable({ games, date, timezone, hideScores, onOpenGame, players = [] }: { games: Game[]; date: string; timezone: string; hideScores: boolean; players?: WatchPlayer[]; onOpenGame?: (game: Game, date: string) => void }) {
+function TeamCell({ team, watched }: { team: string; watched: WatchPlayer[] }) {
+  const level = sideLevel(watched);
+  return <span className={`schedule-team-cell${level === 'none' ? '' : ` watch-team-${level}`}`}><TeamLabel team={team} />{level !== 'none' && <TierMark tier={level === 'favorite' ? 'favorite' : 'interest'} />}</span>;
+}
+
+export function ScheduleTable({ games, date, timezone, hideScores, onOpenGame, players = [], tvMarket }: { games: Game[]; date: string; timezone: string; hideScores: boolean; players?: WatchPlayer[]; tvMarket?: string; onOpenGame?: (game: Game, date: string) => void }) {
   return <div className="schedule-table-wrap"><table className="schedule-table" aria-label={`NBA games for ${date}`}>
     <colgroup><col className="schedule-time-col"/><col/><col/><col className="schedule-score-col"/><col className="schedule-status-col"/><col className="schedule-link-col"/></colgroup>
     <thead><tr><th scope="col">Tipoff</th><th scope="col">Away</th><th scope="col">Home</th><th scope="col">Score</th><th scope="col">Status</th><th scope="col"><span className="schedule-sr-only">Source</span></th></tr></thead>
-    <tbody>{games.map(game => {
+    <tbody>{games.map((game, index) => {
       const tipoff = formatScheduleTipoff(game.startsAt, timezone, date);
       const score = game.status === 'scheduled' || game.status === 'postponed' ? '—' : hideScores ? '••' : `${game.awayScore ?? '—'} – ${game.homeScore ?? '—'}`;
-      return <tr key={game.id} className={`${game.status === 'live' ? 'schedule-live' : ''} ${onOpenGame ? 'schedule-open-row' : ''}`} onClick={onOpenGame ? () => onOpenGame(game, date) : undefined}>
-        <td>{onOpenGame ? <button className="schedule-game-open" aria-label={`Open ${game.status === 'scheduled' || game.status === 'postponed' ? 'injury report' : 'box score'} for ${game.away} at ${game.home}`} onClick={event => { event.stopPropagation(); onOpenGame(game, date); }}><time dateTime={game.startsAt}>{tipoff.time}</time>{tipoff.date && <small>{tipoff.date}</small>}</button> : <><time dateTime={game.startsAt}>{tipoff.time}</time>{tipoff.date && <small>{tipoff.date}</small>}</>}</td>
-        <th scope="row"><TeamLabel team={game.away} /></th><td className="schedule-team"><TeamLabel team={game.home} /></td>
-        <td className="schedule-score" aria-label={hideScores && ['live', 'final'].includes(game.status) ? 'Score hidden' : undefined}>{score}</td>
-        <td className="schedule-game-status">{game.status === 'scheduled' ? 'Scheduled' : game.statusText || game.status}<div className="schedule-watched">{watchedPlayersForGame(game, players).map(player => <span className={player.tier === 'favorite' ? 'schedule-favorite' : 'schedule-following'} key={player.id} title={`${player.tier === 'favorite' ? 'Favorite' : 'Following'}: ${player.name}`}><img src={`https://a.espncdn.com/i/headshots/nba/players/full/${player.id}.png`} alt="" loading="lazy" onError={event => { event.currentTarget.hidden = true; }}/><span>{player.tier === 'favorite' ? '★ ' : ''}{player.name}</span></span>)}</div></td>
-        <td>{game.sourceUrl && <a href={game.sourceUrl} target="_blank" rel="noreferrer" aria-label={`${game.away} at ${game.home}: ESPN game details`} onClick={event => event.stopPropagation()}><ArrowUpRight size={15}/></a>}</td>
-      </tr>;
+      const watch = gameWatch(game, players);
+      const watched = [...watch.away, ...watch.home];
+      const open = onOpenGame ? () => onOpenGame(game, date) : undefined;
+      const rowClass = ['schedule-game', index % 2 ? 'schedule-even' : '', game.status === 'live' ? 'schedule-live' : '', onOpenGame ? 'schedule-open-row' : '',
+        watch.marquee ? 'watch-accent-marquee schedule-marquee' : watch.level !== 'none' ? `watch-accent-${watch.level}` : '', watched.length ? 'schedule-has-watch' : ''].filter(Boolean).join(' ');
+      return <Fragment key={game.id}>
+        <tr className={rowClass} onClick={open}>
+          <td>{onOpenGame ? <button className="schedule-game-open" aria-label={`Open ${game.status === 'scheduled' || game.status === 'postponed' ? 'injury report and where to watch' : 'box score'} for ${game.away} at ${game.home}${watch.marquee ? ', marquee matchup' : ''}`} onClick={event => { event.stopPropagation(); onOpenGame(game, date); }}><time dateTime={game.startsAt}>{tipoff.time}</time>{tipoff.date && <small>{tipoff.date}</small>}</button> : <><time dateTime={game.startsAt}>{tipoff.time}</time>{tipoff.date && <small>{tipoff.date}</small>}</>}</td>
+          <th scope="row"><TeamCell team={game.away} watched={watch.away}/></th><td className="schedule-team"><TeamCell team={game.home} watched={watch.home}/></td>
+          <td className="schedule-score" aria-label={hideScores && ['live', 'final'].includes(game.status) ? 'Score hidden' : undefined}>{score}</td>
+          <td className="schedule-game-status">{game.status === 'scheduled' ? 'Scheduled' : game.statusText || game.status}<WatchChip game={game} market={tvMarket}/></td>
+          <td>{game.sourceUrl && <a href={game.sourceUrl} target="_blank" rel="noreferrer" aria-label={`${game.away} at ${game.home}: ESPN game details`} onClick={event => event.stopPropagation()}><ArrowUpRight size={15}/></a>}</td>
+        </tr>
+        {watched.length > 0 && <tr className={`${rowClass} schedule-watch-row`} onClick={open}><td colSpan={6}><div className="schedule-watched">
+          {watch.marquee && <MarqueeBadge/>}
+          {watch.away.length > 0 && <span className="schedule-watch-side"><span className="schedule-watch-team">{game.away}</span>{watch.away.map(player => <WatchedChip key={player.id} player={player}/>)}</span>}
+          {watch.home.length > 0 && <span className="schedule-watch-side"><span className="schedule-watch-team">{game.home}</span>{watch.home.map(player => <WatchedChip key={player.id} player={player}/>)}</span>}
+        </div></td></tr>}
+      </Fragment>;
     })}</tbody>
   </table></div>;
 }
 
-export default function Schedule({ preferences, demo, onConnectLive, onOpenGame, refreshKey = 0 }: { preferences: Pick<Preferences, 'timezone' | 'hideScores' | 'players'>; demo: boolean; onConnectLive: () => void; onOpenGame: (game: Game, date: string) => void; refreshKey?: number }) {
+export default function Schedule({ preferences, demo, onConnectLive, onOpenGame, refreshKey = 0 }: { preferences: Pick<Preferences, 'timezone' | 'hideScores' | 'players' | 'tvMarket'>; demo: boolean; onConnectLive: () => void; onOpenGame: (game: Game, date: string) => void; refreshKey?: number }) {
   const [selectedDate, setDate] = useState<string | null>(null);
   const [clock, setClock] = useState(() => new Date());
   const date = resolveScheduleDate(selectedDate, clock);
@@ -66,7 +85,7 @@ export default function Schedule({ preferences, demo, onConnectLive, onOpenGame,
         : visible.loading ? <div className="schedule-feedback" role="status"><LoaderCircle className="spin" size={19}/><span>Loading schedule…</span></div>
           : visible.error ? <div className="schedule-feedback" role="alert"><span>{visible.error}</span><button className="small-button" onClick={() => setAttempt(value => value + 1)}>Retry</button>{visible.error.startsWith('Sign in') && <button className="small-button" onClick={onConnectLive}>Sign in</button>}</div>
             : visible.data && <>
-              {visible.data.games.length ? <ScheduleTable games={visible.data.games} date={date} timezone={preferences.timezone} hideScores={preferences.hideScores} players={preferences.players} onOpenGame={onOpenGame}/> : <div className="schedule-feedback" role="status">No games reported for {formatScheduleDate(date)}.</div>}
+              {visible.data.games.length ? <ScheduleTable games={visible.data.games} date={date} timezone={preferences.timezone} hideScores={preferences.hideScores} players={preferences.players} tvMarket={preferences.tvMarket} onOpenGame={onOpenGame}/> : <div className="schedule-feedback" role="status">No games reported for {formatScheduleDate(date)}.</div>}
               {!!visible.data.warnings?.length && <div className="schedule-notices" role="status">{visible.data.warnings.map((warning, index) => <p key={index}>{warning}</p>)}</div>}
               <div className="schedule-source"><span>ESPN schedule</span>{updated && Number.isFinite(updated.getTime()) && <time dateTime={visible.data.updatedAt}>Updated {new Intl.DateTimeFormat('en-US', { timeZone: preferences.timezone, month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(updated)}</time>}</div>
             </>}

@@ -23,19 +23,27 @@ describe('multi-player favorite roster', () => {
     expect(html.match(/1\/1 games final/g)).toHaveLength(1);
   });
 
-  it('keeps four silver stat cells for every row and distinguishes missing data from actual zero', () => {
+  it('keeps four silver stat cells for a played line and shows real zeros', () => {
     const html = render([line({ points: 0, rebounds: 0, assists: 0, blocks: 0 })]);
     const rendered = rows(html);
     expect(rendered).toHaveLength(5);
-    for (const row of rendered) expect(row.match(/class="player-roster-stat"/g)).toHaveLength(4);
-    expect((rendered[0] || '').match(/>0<\/span>/g)).toHaveLength(4);
-    for (const row of rendered.slice(1)) expect(row.match(/>—<\/span>/g)).toHaveLength(4);
+    expect(rendered[0].match(/class="player-roster-stat"/g)).toHaveLength(4);
+    expect(rendered[0].match(/>0<\/span>/g)).toHaveLength(4);
   });
 
-  it.each([line({ didNotPlay: true }), line({ minutes: 0 }), line({ status: 'scheduled' })])('does not show an unplayed line as real stats: %j', value => {
+  it('replaces empty stat cells with one status plate per player without a line', () => {
+    const rendered = rows(render([line()]));
+    for (const row of rendered.slice(1)) {
+      expect(row).not.toContain('player-roster-stat');
+      expect(row.match(/class="player-roster-plate plate-[a-z]+"/g)).toHaveLength(1);
+    }
+  });
+
+  it.each([[line({ didNotPlay: true, didNotPlayReason: "DNP-COACH'S DECISION" }), 'plate-dnp', "Coach&#x27;s decision"], [line({ minutes: 0 }), 'plate-final', 'No stats in box score'], [line({ status: 'scheduled' }), 'plate-final', 'No stats in box score']] as const)('does not show an unplayed line as real stats: %#', (value, plate, detail) => {
     const first = rows(render([value]))[0] || '';
-    expect(first.match(/>—<\/span>/g)).toHaveLength(4);
     expect(first).not.toContain('>34</span>');
+    expect(first).toContain(plate);
+    expect(first).toContain(detail);
   });
 
   it('marks only the selected row and keeps its full name accessible even when visually truncated', () => {

@@ -125,14 +125,14 @@ describe('game entry points', () => {
   it('makes the schedule matchup an accessible button while preserving its ESPN source link', () => {
     const html = renderToStaticMarkup(<ScheduleTable games={[game]} date="2026-10-10" timezone="America/New_York" hideScores={false} onOpenGame={() => {}} />);
     expect(html).toContain('<button');
-    expect(html).toContain('Open injury report for SAS at LAL');
+    expect(html).toContain('Open injury report and where to watch for SAS at LAL');
     expect(html).toContain(game.sourceUrl);
   });
 
   it('makes a recap game open the report with its original ESPN source still visible', () => {
     const html = renderToStaticMarkup(<GameRow game={game} hideScores={false} onOpen={() => {}} />);
     expect(html).toContain('<button');
-    expect(html).toContain('Open injury report for SAS at LAL');
+    expect(html).toContain('Open injury report and where to watch for SAS at LAL');
     expect(html).toContain(game.sourceUrl);
   });
 });

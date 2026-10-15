@@ -8,5 +8,5 @@ export const DEFAULT_PREFERENCES: Preferences = {
     { id: '4845367', name: 'Stephon Castle', team: 'SAS', tier: 'favorite', alerts: true, injuryAlerts: false }
   ],
   bedtime: '23:30', timezone: 'America/New_York', length: 'nerd', hideScores: false,
-  liveAlerts: false, injuryAlerts: false, quietStart: '00:00', quietEnd: '09:00'
+  liveAlerts: false, injuryAlerts: false, quietStart: '00:00', quietEnd: '09:00', tvMarket: 'NY'
 };

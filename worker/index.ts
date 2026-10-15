@@ -10,7 +10,8 @@ import { searchPlayers } from './players';
 import { validatePreferences, validDate, validSubscriptionKeys } from './validation';
 import { loadCareerHistory, loadSeasonLog, loadSeasonHonors, validHistoryId, validHistorySeason } from './history-store';
 import { bedtimeNotification, milestoneNotification } from './notifications';
-import { loadGameInjuries } from './injuries';
+import { loadGameInjuries, loadPlayerInjuries } from './injuries';
+import { syncedTeams } from '../src/shared/team-matching';
 import { loadGameBoxScore } from './boxscores';
 import { resetInjuryAlertBaselines, runInjuryAlerts } from './injury-alerts';
 
@@ -57,16 +58,23 @@ export async function refresh(env:Env,date:string,preferences:Preferences,editio
   } finally { await releaseLock(env.DB,`refresh:${date}`); }
 }
 async function dashboard(env:Env,date?:string,force=false):Promise<Dashboard> {
-  const preferences=await getPreferences(env.DB);
+  let preferences=await getPreferences(env.DB);
   // ESPN's NBA date is Eastern; changing notification timezone must not select
   // tomorrow's slate while tonight's games are still running in the US.
-  const selected=date??basketballDate(new Date(),'America/New_York');
+  const today=basketballDate(new Date(),'America/New_York');
+  const selected=date??today;
   if(!validDate(selected)) throw new Error('Invalid date.');
   let night=force?null:await getNight(env.DB,selected);
   if(!night) night=await refresh(env,selected,preferences);
+  // Injury listings describe today only; a failed feed simply omits them.
+  const injuries=selected===today?await loadPlayerInjuries(env.DB,preferences.players.map(player=>player.id)).catch(()=>null):null;
+  // Traded players follow their current team, learned from today's box scores or listings only.
+  const players=selected===today?syncedTeams(preferences.players,night.players,injuries?.players):null;
+  if(players) { preferences={...preferences,players}; await savePreferences(env.DB,preferences); }
   const nights=await archive(env.DB);
   return { night,preferences,archive:nights.map(n=>({date:n.date,headline:n.headline,edition:n.edition})),trackers:buildTrackers(nights,preferences,night),
-    capabilities:{liveData:true,persistent:true,push:!!(env.VAPID_PUBLIC_KEY&&env.VAPID_PRIVATE_KEY&&env.VAPID_SUBJECT),ai:!!env.OPENAI_API_KEY},budget:await readBudget(env)};
+    capabilities:{liveData:true,persistent:true,push:!!(env.VAPID_PUBLIC_KEY&&env.VAPID_PRIVATE_KEY&&env.VAPID_SUBJECT),ai:!!env.OPENAI_API_KEY},budget:await readBudget(env),
+    ...(injuries?{injuries}:{})};
 }
 async function route(request:Request,env:Env):Promise<Response> {
   const url=new URL(request.url);

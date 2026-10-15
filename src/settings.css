@@ -1,0 +1,18 @@
+/* Simplified settings: four panels, one column on phones. */
+.settings-simple .form-grid.single{grid-template-columns:1fr}
+.settings-simple .notification-actions{padding:10px 12px 2px;margin:0}
+.settings-simple .notification-actions>.primary-button{flex:1;width:auto}
+.settings-simple .setting-description{padding:10px 12px 0}
+.settings-simple .account-actions{padding:10px 12px 12px}
+@media(max-width:800px){
+  .settings-layout.settings-simple{grid-template-columns:1fr;gap:10px}
+  .settings-simple>div{gap:10px}
+  .settings-simple .form-grid{grid-template-columns:1fr 1.3fr;padding:10px}
+  .settings-simple .form-grid.single{grid-template-columns:1fr}
+  .settings-simple .connection-line{flex-direction:row;align-items:center;font-size:13px;padding:10px}
+  .settings-simple .connection-line strong{font-size:14px;text-align:right}
+  .settings-simple .account-actions{flex-direction:row;padding:4px 10px 10px}
+  .settings-simple .account-actions>button{font-size:15px;min-height:44px}
+  .settings-simple .notification-actions{padding:10px 10px 2px}
+  .settings-simple .notification-actions>.primary-button{font-size:15px}
+}

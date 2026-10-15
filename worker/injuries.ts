@@ -1,4 +1,4 @@
-import type { Game } from '../src/shared/types';
+import type { Dashboard, Game } from '../src/shared/types';
 import type { GameInjuryReport, InjuryPlayer, InjuryTeam } from '../src/shared/injury-types';
 import { validDate } from './validation';
 
@@ -183,4 +183,18 @@ export async function loadGameInjuries(db: D1Database, game: Game, date: string,
       ...(stale && !loaded.failed ? ['The ESPN feed update time is old or unverified. Check the source before relying on availability.'] : []),
     ],
   };
+}
+
+/** Today's listings for watched players (roster status plates). Never used for alerts. */
+export async function loadPlayerInjuries(db: D1Database, ids: string[], now = new Date()): Promise<NonNullable<Dashboard['injuries']> | null> {
+  if (!ids.length) return null;
+  const loaded = await loadFeed(db);
+  if (!loaded.feed) return null;
+  const sourceAge = now.getTime() - Date.parse(loaded.feed.feedUpdatedAt || '');
+  const wanted = new Set(ids);
+  const players: NonNullable<Dashboard['injuries']>['players'] = {};
+  for (const team of loaded.feed.teams) for (const player of team.players) {
+    if (wanted.has(player.id)) players[player.id] = { status: player.status, reason: player.reason === 'Reason not provided' ? '' : player.reason, updatedAt: player.updatedAt, team: team.team };
+  }
+  return { checkedAt: loaded.fetchedAt, stale: loaded.failed || !Number.isFinite(sourceAge) || sourceAge > STALE_AFTER, players };
 }

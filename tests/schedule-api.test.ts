@@ -52,7 +52,7 @@ describe('authenticated scoreboard-only schedule', () => {
     expect(await response.json()).toEqual({ date: '2026-10-11', source: 'espn', updatedAt: '2026-10-11T04:30:00.000Z', warnings: [], games: [{
       id: '401900123', away: 'SAS', home: 'GSW', awayScore: null, homeScore: null,
       status: 'scheduled', statusText: 'Sun, October 11th at 8:00 PM EDT', startsAt: '2026-10-12T00:00Z',
-      sourceUrl: 'https://www.espn.com/nba/game/_/gameId/401900123',
+      sourceUrl: 'https://www.espn.com/nba/game/_/gameId/401900123', broadcasts: [],
     }] });
     expect(provider).toHaveBeenCalledOnce();
     expect(String(provider.mock.calls[0][0])).toBe('https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261011&limit=100');

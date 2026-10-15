@@ -19,8 +19,9 @@ describe('box-score row portraits', () => {
   ])('uses the actual ESPN identity for %s while keeping the player name accessible', (id, name) => {
     const html = renderPlayer(id, name);
     expect(html).toContain(`<img src="https://a.espncdn.com/i/headshots/nba/players/full/${id}.png" alt=""`);
-    expect(html).toContain(`aria-label="${name}, No game data for this night"`);
-    expect(html).toContain(`<strong>${name}</strong>`);
+    expect(html).toContain(`aria-label="${name}, favorite, No game data for this night"`);
+    expect(html).toContain(`${name}</strong>`);
+    expect(html).toContain('tier-mark-favorite');
   });
 
   it.each(['pending:unknown', 'sample-player', 'demo-1', ''])('renders a neutral fallback instead of inventing a headshot for %j', (id) => {

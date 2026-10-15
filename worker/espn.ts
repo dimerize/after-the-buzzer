@@ -1,4 +1,4 @@
-import type { Game, GameStatus, Night, PlayerLine, Preferences, StatLine } from '../src/shared/types';
+import type { Broadcast, Game, GameStatus, Night, PlayerLine, Preferences, StatLine } from '../src/shared/types';
 import { buildRecap } from './recap';
 
 const API = 'https://site.api.espn.com/apis/site/v2/sports/basketball/nba';
@@ -25,6 +25,28 @@ function statusOf(value: unknown): GameStatus {
   if (type.completed === true || type.name === 'STATUS_FINAL') return 'final';
   if (type.state === 'in') return 'live';
   return 'scheduled';
+}
+
+/** US TV and streaming listings; radio and non-US regions are dropped. */
+export function parseBroadcasts(competition: ObjectValue): Broadcast[] {
+  const result: Broadcast[] = [];
+  const add = (market: string, type: string, rawName: unknown) => {
+    const name = string(rawName).replace(/[\r\n\t]+/g, ' ').trim().slice(0, 40);
+    const scope = market.toLowerCase(), kind = type.toLowerCase();
+    if (!name || !['national', 'home', 'away'].includes(scope) || kind === 'radio') return;
+    const entry: Broadcast = { market: scope as Broadcast['market'], type: kind === 'streaming' ? 'streaming' : 'tv', name };
+    if (!result.some(item => item.market === entry.market && item.name === entry.name)) result.push(entry);
+  };
+  for (const raw of array(competition.geoBroadcasts)) {
+    const item = object(raw);
+    if (item.region && string(item.region).toLowerCase() !== 'us') continue;
+    add(string(object(item.market).type), string(object(item.type).shortName), object(item.media).shortName);
+  }
+  if (!result.length) for (const raw of array(competition.broadcasts)) {
+    const item = object(raw);
+    for (const name of array(item.names)) add(string(item.market), 'tv', name);
+  }
+  return result.slice(0, 12);
 }
 
 export function parseScoreboard(value: unknown, date: string): { games: Game[]; warnings: string[]; season: string; seasonType: Night['seasonType']; seasonYear: number | null } {
@@ -65,7 +87,7 @@ export function parseScoreboard(value: unknown, date: string): { games: Game[]; 
     if (!statusType.name && !statusType.state) warnings.push(`Game status unavailable for event ${id}.`);
     games.push({ id, home: homeTeam, away: awayTeam, homeScore, awayScore, status, startsAt,
       statusText: string(statusType.shortDetail ?? statusType.detail ?? statusType.description) || ({ final: 'Final', live: 'In progress', scheduled: 'Scheduled', postponed: 'Postponed or canceled' }[status]),
-      sourceUrl: `https://www.espn.com/nba/game/_/gameId/${id}` });
+      sourceUrl: `https://www.espn.com/nba/game/_/gameId/${id}`, broadcasts: parseBroadcasts(competition) });
   }
   return { games, warnings, season, seasonType, seasonYear };
 }
@@ -132,12 +154,13 @@ export function parseSummary(value: unknown, game: Game): { players: PlayerLine[
         if (!id || !name) { warnings.push(`Player identity missing in game ${game.id}.`); continue; }
         if (players.some(player => player.id === id)) continue;
         const didNotPlay = row.didNotPlay === true || /^DNP\b/i.test(string(array(row.stats)[0]));
+        const reason = didNotPlay ? (string(row.reason).trim() || string(array(row.stats)[0]).replace(/^DNP\s*[-–:]?\s*/i, '').trim()).slice(0, 60) : '';
         const stats = didNotPlay ? { ...ZERO_STATS } : statLine(block, row);
         if (!stats) { warnings.push(`Incomplete or malformed statistics for ${name} (${game.id}); line excluded.`); continue; }
         coveredTeams.add(team);
         const headshot = string(object(athlete.headshot).href);
         players.push({ ...stats, id, name, team, opponent: team === game.home ? game.away : game.home,
-          gameId: game.id, status: game.status, starter: row.starter === true, didNotPlay,
+          gameId: game.id, status: game.status, starter: row.starter === true, didNotPlay, ...(reason ? { didNotPlayReason: reason } : {}),
           rookie: athlete.rookie === true || object(athlete.experience).years === 0,
           ...(headshot.startsWith('https://') ? { headshot } : {}) });
       }

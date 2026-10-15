@@ -5,6 +5,8 @@ export interface Preferences {
   players: WatchPlayer[]; bedtime: string; timezone: string;
   length: 'quick' | 'normal' | 'nerd'; hideScores: boolean;
   liveAlerts: boolean; injuryAlerts?: boolean; quietStart: string; quietEnd: string;
+  /** League Pass blackout market (see shared/watch-guide). */
+  tvMarket?: string;
 }
 export interface StatLine {
   points: number; rebounds: number; assists: number; steals: number; blocks: number;
@@ -14,11 +16,16 @@ export interface StatLine {
 export interface PlayerLine extends StatLine {
   id: string; name: string; team: string; opponent: string;
   gameId: string; rookie: boolean; status: GameStatus; starter: boolean;
-  didNotPlay: boolean; headshot?: string;
+  didNotPlay: boolean; didNotPlayReason?: string | null; headshot?: string;
 }
+/** A watched player's current ESPN injury listing (today's slate only). */
+export interface PlayerInjury { status: string; reason: string; updatedAt: string | null; team: string }
+/** One US listing from ESPN: national, or a team's local feed. */
+export interface Broadcast { market: 'national' | 'home' | 'away'; type: 'tv' | 'streaming'; name: string }
 export interface Game {
   id: string; away: string; home: string; awayScore: number | null; homeScore: number | null;
   status: GameStatus; statusText: string; startsAt: string; sourceUrl: string;
+  broadcasts?: Broadcast[];
 }
 export interface Highlight {
   id: string; playerId?: string; title: string; detail: string;
@@ -44,4 +51,6 @@ export interface Dashboard {
   trackers: Tracker[];
   capabilities: { liveData: boolean; persistent: boolean; push: boolean; ai: boolean };
   budget: { used: number; limit: number; month: string };
+  /** Current ESPN injury listings for watched players, keyed by player ID; only for the current slate. */
+  injuries?: { checkedAt: string | null; stale: boolean; players: Record<string, PlayerInjury> };
 }

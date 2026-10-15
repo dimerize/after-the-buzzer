@@ -10,6 +10,12 @@ export function currentScheduleDate(now = new Date()): string {
   return `${parts.year}-${parts.month}-${parts.day}`;
 }
 export const nextScheduleDate = currentScheduleDate;
+/** The recap's slate: Eastern date, rolling over at 06:00 so late games stay on their night. */
+export function currentSlateDate(now = new Date()): string {
+  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', hourCycle: 'h23' }).formatToParts(now).map(({ type, value }) => [type, value]));
+  // Calendar arithmetic, like the server, so DST nights cannot shift the slate.
+  return new Date(Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day) - (Number(parts.hour) < 6 ? 1 : 0))).toISOString().slice(0, 10);
+}
 export function resolveScheduleDate(selected: string | null, now = new Date()): string { return selected ?? currentScheduleDate(now); }
 
 export function shiftScheduleDate(date: string, days: number): string | null {

@@ -1,0 +1,23 @@
+/* Recap: watched-player accents on the scoreboard, highlights and player rows; compact phone scoreboard. */
+.game-row{position:relative}
+.game-team-id{display:inline-flex;align-items:center;gap:4px;min-width:0}
+.game-team-id.watch-team-favorite .team-name,.game-team-id.watch-team-interest .team-name{color:inherit}
+.game-row-marquee{position:absolute;top:0;left:50%;transform:translateX(-50%);padding:0 7px 1px;border:1px solid #fff2b8;border-top:0;border-radius:0 0 3px 3px;background:linear-gradient(#fff3c4,#e8c65c 42%,#a57d1c 55%,#ecd07a);color:#2a1d02;font-size:10px;font-weight:800;letter-spacing:.5px;line-height:1.3;text-transform:uppercase;white-space:nowrap;text-shadow:0 1px #fff6;box-shadow:0 1px 6px #e3c76b88}
+.game-row.watch-accent-marquee{padding-top:18px}
+@media(max-width:800px){
+  .scoreboard .game-row{flex-direction:column;align-items:stretch;min-height:0;padding:8px 5px 7px}
+  .scoreboard .game-row-open{flex-direction:column;align-items:stretch;gap:5px;min-height:44px}
+  .scoreboard .game-row-source{display:none}
+  .scoreboard .game-status{text-align:left;font-size:11px}
+  .scoreboard .game-teams{min-width:0}
+  .scoreboard .game-row.watch-accent-marquee{padding-top:15px}
+  .game-row-marquee{font-size:9px;padding:0 5px}
+  .game-team-id{gap:2px}
+}
+.highlight-favorite{box-shadow:inset 3px 0 0 var(--fav-glow);background:linear-gradient(90deg,#3d321244,#01091b00 60%)}
+.highlight-following{box-shadow:inset 3px 0 0 var(--follow-glow);background:linear-gradient(90deg,#12355244,#01091b00 60%)}
+.highlight h3 .tier-mark{font-size:13px}
+.following-row{box-shadow:inset 3px 0 0 var(--follow-glow)}
+.player-name>strong .tier-mark{margin-right:4px}
+.status-chip{flex:none;margin-right:6px;padding:3px 7px;border:1px solid;border-radius:2px;font-size:12px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;line-height:1.1;text-shadow:1px 1px #0008}
+.status-chip.plate-questionable{text-shadow:0 1px #fff5}

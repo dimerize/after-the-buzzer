@@ -12,7 +12,7 @@
 .schedule-table th,.schedule-table td{padding:12px 11px;border-bottom:1px solid #365497;font-weight:500;overflow-wrap:anywhere}
 .schedule-table thead{background:linear-gradient(#7297bc,#2b476f 50%,#1a355f);color:#e0ebf8;text-shadow:1px 1px #000;font-size:15px}
 .schedule-table thead th{padding-top:6px;padding-bottom:6px;font-weight:600;border-bottom:2px solid #4868b2}
-.schedule-table tbody tr:nth-child(even){background:#10244766}
+.schedule-table tbody tr.schedule-even{background:#10244766}
 .schedule-table tbody tr.schedule-open-row{cursor:pointer}
 .schedule-table tbody tr.schedule-open-row:hover{background:#3047bb88}
 .schedule-game-open{display:block;width:100%;min-height:44px;padding:0;text-align:left;color:inherit}
@@ -42,5 +42,20 @@
   .schedule-table .schedule-game-status{font-size:12px}.schedule-table small{font-size:11px}.schedule-table a{min-height:44px}.schedule-table a svg{width:13px}
   .schedule-source{font-size:11px;padding:6px 5px;gap:8px}.schedule-feedback{font-size:15px;padding:18px 10px;min-height:110px}.schedule-notices{font-size:12px;padding:6px}
 }
-.schedule-watched{display:flex;flex-direction:column;gap:3px;margin-top:4px;white-space:normal;font-size:11px;line-height:1.1}
-.schedule-watched>span{display:flex;align-items:center;gap:3px;max-width:150px}.schedule-watched img{width:20px;height:22px;object-fit:cover;flex-shrink:0}.schedule-favorite{color:#f3df91}.schedule-following{color:#b2cee8}
+/* Watched players: chips under the matchup, a gold ribbon when both teams have one. */
+.schedule-table tr.schedule-has-watch:not(.schedule-watch-row)>*{border-bottom:0;padding-bottom:4px}
+.schedule-table tr.schedule-watch-row>td{padding:0 11px 9px;text-align:left}
+.schedule-watched{display:flex;flex-wrap:wrap;align-items:center;gap:5px 10px}
+.schedule-watch-side{display:inline-flex;flex-wrap:wrap;align-items:center;gap:4px;min-width:0}
+.schedule-watch-team{font-size:11px;font-weight:700;letter-spacing:.3px;color:#8fb0d4}
+.schedule-team-cell{display:inline-flex;align-items:center;gap:4px;max-width:100%}
+.schedule-table tr.schedule-marquee{background:linear-gradient(90deg,#4a3a0e66,#0a163400 35%,#0a163400 65%,#4a3a0e66)!important}
+.schedule-table tr.schedule-marquee:not(.schedule-watch-row)>*{border-top:1px solid #a8893a88}
+.schedule-table tr.schedule-marquee.schedule-watch-row>td{border-bottom:1px solid #a8893a88}
+.schedule-game-status .watch-chip{display:flex;width:max-content}
+.schedule-table tr.watch-accent-favorite>:first-child{box-shadow:inset 3px 0 0 var(--fav-glow)}
+.schedule-table tr.watch-accent-interest>:first-child{box-shadow:inset 3px 0 0 var(--follow-glow)}
+.schedule-table tr.watch-accent-marquee>:first-child{box-shadow:inset 3px 0 0 var(--fav-glow)}
+.schedule-table tr.watch-accent-marquee>:last-child{box-shadow:inset -3px 0 0 var(--fav-glow)}
+.schedule-table tr.watch-accent-marquee.schedule-watch-row>td{box-shadow:inset 3px 0 0 var(--fav-glow),inset -3px 0 0 var(--fav-glow)}
+@media(max-width:800px){.schedule-table tr.schedule-watch-row>td{padding:0 4px 8px}.schedule-watched{gap:4px 8px}.schedule-team-cell{gap:2px}}
